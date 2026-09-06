@@ -1,6 +1,5 @@
-// SchoolMate API Client with Multi-Tenant Header Injection
-
-const API_BASE = '/api/v1';
+const RAW_API_URL = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/+$/, '') || '';
+const API_BASE = RAW_API_URL ? `${RAW_API_URL}/api/v1` : '/api/v1';
 
 export interface ApiResponse<T = any> {
   data?: T;

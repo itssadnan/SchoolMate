@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: schoolmate-backend
+    runtime: node
+    rootDir: backend
+    buildCommand: npm install && npm run build
+    startCommand: npm run start:prod
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: DATABASE_URL
+        value: file:./schoolmate.db
+      - key: JWT_SECRET
+        generateValue: true
+      - key: AI_PROVIDER
+        value: nvidia
+      - key: AI_BASE_URL
+        value: https://integrate.api.nvidia.com/v1
+      - key: AI_MODEL
+        value: meta/llama-3.3-70b-instruct
+      - key: AI_API_KEY
+        sync: false
+      - key: AI_TEMPERATURE
+        value: "0.4"
