@@ -96,18 +96,26 @@ export const GradingStudio: React.FC<GradingStudioProps> = ({
     }
     setSuggestingFeedback(true);
     try {
+      const res = await ApiClient.post('/ai/grading-feedback', {
+        studentName: `${currentStudent.firstName} ${currentStudent.lastName}`,
+        assignmentTitle: data?.assignment?.title || 'Assignment',
+        score: Number(points),
+        maxScore: maxScore,
+        submissionText: currentStudent.submissionContent || '',
+        subject: data?.assignment?.subject?.name || 'Academic Studies',
+      });
+      if (res && res.text) {
+        setFeedback(res.text);
+      }
+    } catch (err) {
+      console.error('AI Suggest feedback error:', err);
       const scoreNum = Number(points);
       const isHigh = scoreNum >= maxScore * 0.85;
-      const isMid = scoreNum >= maxScore * 0.7;
-
       const tone = isHigh
         ? 'Commendation on conceptual depth and rigorous analysis.'
-        : isMid
-        ? 'Constructive reinforcement on problem methodology and unit checks.'
-        : 'Supportive guidance on foundational theory and step-by-step revision.';
-
+        : 'Constructive guidance on problem methodology and intermediate steps.';
       setFeedback(
-        `Great effort on this submission, ${currentStudent.firstName}! ${tone} Keep up the focused momentum as we transition into the next topic.`
+        `Great effort on this submission, ${currentStudent.firstName}! ${tone} Keep up the focused momentum as we transition into the next unit.`
       );
     } finally {
       setSuggestingFeedback(false);

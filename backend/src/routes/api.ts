@@ -25,6 +25,7 @@ import {
   generateLessonPlan,
   generateRubric,
   generateIntervention,
+  generateGradingFeedback,
   getAiConfig,
   updateAiConfig,
 } from '../controllers/aiController';
@@ -84,6 +85,7 @@ router.post('/ai/report-card', generateReportCardComment);
 router.post('/ai/lesson-plan', generateLessonPlan);
 router.post('/ai/rubric', generateRubric);
 router.post('/ai/intervention', generateIntervention);
+router.post('/ai/grading-feedback', generateGradingFeedback);
 router.get('/ai/config', getAiConfig);
 router.post('/ai/config', updateAiConfig);
 

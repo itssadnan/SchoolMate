@@ -156,3 +156,29 @@ export const updateAiConfig = async (req: TenantRequest, res: Response) => {
     return res.status(500).json({ error: 'Failed to update AI configuration' });
   }
 };
+
+export const generateGradingFeedback = async (req: TenantRequest, res: Response) => {
+  try {
+    const { studentName, assignmentTitle, score, maxScore, submissionText, subject } = req.body;
+    const schoolId = req.user?.schoolId || req.school?.id;
+
+    if (!studentName || !assignmentTitle || score === undefined) {
+      return res.status(400).json({ error: 'Student name, assignment title, and score are required' });
+    }
+
+    const result = await AiService.generateGradingFeedback({
+      studentName,
+      assignmentTitle,
+      score: Number(score),
+      maxScore: maxScore ? Number(maxScore) : 100,
+      submissionText,
+      subject,
+      schoolId,
+    });
+
+    return res.json(result);
+  } catch (error) {
+    console.error('generateGradingFeedback error:', error);
+    return res.status(500).json({ error: 'Failed to generate grading feedback' });
+  }
+};
