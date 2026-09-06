@@ -1,0 +1,338 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model School {
+  id           String          @id @default(cuid())
+  name         String
+  code         String          @unique // e.g. "OAKRIDGE", "STJUDE"
+  tagline      String?
+  logoUrl      String?
+  accentColor  String?         @default("#3b82f6")
+  email        String?
+  phone        String?
+  address      String?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  users        User[]
+  settings     SchoolSetting[]
+  academicYears AcademicYear[]
+  terms        Term[]
+  classes      ClassGroup[]
+  subjects     Subject[]
+  timetables   TimetableSlot[]
+  attendance   AttendanceRecord[]
+  assignments  Assignment[]
+  grades       Grade[]
+  announcements Announcement[]
+  behaviors    BehaviorRecord[]
+  messages     DirectMessage[]
+}
+
+model SchoolSetting {
+  id           String   @id @default(cuid())
+  schoolId     String
+  settingKey   String   // e.g. "AI_MODEL_CONFIG", "ATTENDANCE_RULES"
+  settingValue String   // JSON string
+  updatedAt    DateTime @updatedAt
+
+  school       School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@unique([schoolId, settingKey])
+}
+
+model User {
+  id             String          @id @default(cuid())
+  schoolId       String
+  email          String
+  passwordHash   String
+  role           String          // SUPER_ADMIN, SCHOOL_ADMIN, TEACHER, STUDENT, PARENT
+  firstName      String
+  lastName       String
+  avatarUrl      String?
+  phone          String?
+  status         String          @default("ACTIVE")
+  parentPin      String?         @default("1234") // 4-digit security PIN for parent-alone zone
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  school         School          @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  // Messaging relations
+  sentMessages     DirectMessage[] @relation("SentMessages")
+  receivedMessages DirectMessage[] @relation("ReceivedMessages")
+
+  // Teacher relationships
+  headedClasses  ClassGroup[]    @relation("ClassTeacher")
+  taughtSubjects SubjectAssignment[] @relation("TeacherSubjects")
+  markedAttendance AttendanceRecord[] @relation("MarkedByTeacher")
+  createdAssignments Assignment[]  @relation("TeacherAssignments")
+  gradedEvaluations Grade[]        @relation("TeacherGrades")
+  timetableSlots TimetableSlot[] @relation("TeacherTimetable")
+  loggedBehaviors BehaviorRecord[] @relation("TeacherBehaviors")
+  authoredNotices Announcement[]   @relation("AuthoredNotices")
+
+  // Student relationships
+  enrollments    StudentEnrollment[]
+  studentAttendance AttendanceRecord[] @relation("StudentAttendance")
+  submissions    Submission[]
+  gradesReceived Grade[]          @relation("StudentGrades")
+  studentBehaviors BehaviorRecord[] @relation("StudentBehaviors")
+  parentRelations ParentStudentRelation[] @relation("StudentRelation")
+
+  // Parent relationships
+  childrenRelations ParentStudentRelation[] @relation("ParentRelation")
+
+  @@unique([schoolId, email])
+}
+
+model AcademicYear {
+  id        String       @id @default(cuid())
+  schoolId  String
+  name      String       // e.g. "2026-2027"
+  startDate DateTime
+  endDate   DateTime
+  isCurrent Boolean      @default(false)
+
+  school    School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  terms     Term[]
+  classes   ClassGroup[]
+  enrollments StudentEnrollment[]
+}
+
+model Term {
+  id             String       @id @default(cuid())
+  schoolId       String
+  academicYearId String
+  name           String       // e.g. "Term 1 (Fall)", "Term 2 (Spring)"
+  startDate      DateTime
+  endDate        DateTime
+  isCurrent      Boolean      @default(false)
+
+  school         School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  academicYear   AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+}
+
+model ClassGroup {
+  id             String              @id @default(cuid())
+  schoolId       String
+  name           String              // e.g. "Grade 9-A"
+  section        String?             // e.g. "A"
+  gradeLevel     Int                 // e.g. 9
+  room           String?             // e.g. "Room 302"
+  academicYearId String
+  classTeacherId String?
+
+  school         School              @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  academicYear   AcademicYear        @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+  classTeacher   User?               @relation("ClassTeacher", fields: [classTeacherId], references: [id])
+  
+  enrollments    StudentEnrollment[]
+  subjects       SubjectAssignment[]
+  timetableSlots TimetableSlot[]
+  attendance     AttendanceRecord[]
+  assignments    Assignment[]
+  announcements  Announcement[]
+}
+
+model Subject {
+  id          String              @id @default(cuid())
+  schoolId    String
+  name        String              // e.g. "Physics", "Algebra II", "English Literature"
+  code        String              // e.g. "PHY101", "MTH201"
+  
+  school      School              @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  classes     SubjectAssignment[]
+  timetables  TimetableSlot[]
+  assignments Assignment[]
+}
+
+model SubjectAssignment {
+  id           String     @id @default(cuid())
+  classGroupId String
+  subjectId    String
+  teacherId    String
+
+  classGroup   ClassGroup @relation(fields: [classGroupId], references: [id], onDelete: Cascade)
+  subject      Subject    @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  teacher      User       @relation("TeacherSubjects", fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@unique([classGroupId, subjectId, teacherId])
+}
+
+model StudentEnrollment {
+  id             String       @id @default(cuid())
+  studentId      String
+  classGroupId   String
+  rollNumber     String       // e.g. "01", "02"
+  academicYearId String
+
+  student        User         @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  classGroup     ClassGroup   @relation(fields: [classGroupId], references: [id], onDelete: Cascade)
+  academicYear   AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, classGroupId, academicYearId])
+}
+
+model ParentStudentRelation {
+  id               String @id @default(cuid())
+  parentId         String
+  studentId        String
+  relationshipType String // "Father", "Mother", "Guardian"
+
+  parent           User   @relation("ParentRelation", fields: [parentId], references: [id], onDelete: Cascade)
+  student          User   @relation("StudentRelation", fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([parentId, studentId])
+}
+
+model TimetableSlot {
+  id           String     @id @default(cuid())
+  schoolId     String
+  classGroupId String
+  subjectId    String
+  teacherId    String
+  dayOfWeek    String     // "MON", "TUE", "WED", "THU", "FRI"
+  startTime    String     // "08:30"
+  endTime      String     // "09:15"
+  room         String?    // "Room 302"
+
+  school       School     @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  classGroup   ClassGroup @relation(fields: [classGroupId], references: [id], onDelete: Cascade)
+  subject      Subject    @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  teacher      User       @relation("TeacherTimetable", fields: [teacherId], references: [id], onDelete: Cascade)
+}
+
+model AttendanceRecord {
+  id           String     @id @default(cuid())
+  schoolId     String
+  classGroupId String
+  studentId    String
+  date         String     // "YYYY-MM-DD"
+  status       String     // "PRESENT", "ABSENT", "LATE", "EXCUSED"
+  remarks      String?
+  markedById   String
+  createdAt    DateTime   @default(now())
+
+  school       School     @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  classGroup   ClassGroup @relation(fields: [classGroupId], references: [id], onDelete: Cascade)
+  student      User       @relation("StudentAttendance", fields: [studentId], references: [id], onDelete: Cascade)
+  markedBy     User       @relation("MarkedByTeacher", fields: [markedById], references: [id])
+
+  @@unique([classGroupId, studentId, date])
+}
+
+model Assignment {
+  id           String       @id @default(cuid())
+  schoolId     String
+  classGroupId String
+  subjectId    String
+  teacherId    String
+  title        String
+  description  String
+  dueAt        DateTime
+  maxPoints    Float        @default(100)
+  category     String       @default("HOMEWORK") // HOMEWORK, QUIZ, EXAM, PROJECT
+  rubricJson   String?      // JSON string for rubric criteria
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  school       School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  classGroup   ClassGroup   @relation(fields: [classGroupId], references: [id], onDelete: Cascade)
+  subject      Subject      @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  teacher      User         @relation("TeacherAssignments", fields: [teacherId], references: [id])
+  
+  submissions  Submission[]
+  grades       Grade[]
+}
+
+model Submission {
+  id            String     @id @default(cuid())
+  assignmentId  String
+  studentId     String
+  content       String?
+  attachmentUrl String?
+  status        String     @default("SUBMITTED") // PENDING, SUBMITTED, LATE, GRADED
+  submittedAt   DateTime   @default(now())
+
+  assignment    Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  student       User       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  grade         Grade?
+
+  @@unique([assignmentId, studentId])
+}
+
+model Grade {
+  id             String      @id @default(cuid())
+  schoolId       String
+  studentId      String
+  assignmentId   String
+  submissionId   String?     @unique
+  pointsAwarded  Float
+  feedback       String?
+  gradedById     String
+  gradedAt       DateTime    @default(now())
+
+  school         School      @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  student        User        @relation("StudentGrades", fields: [studentId], references: [id], onDelete: Cascade)
+  assignment     Assignment  @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  submission     Submission? @relation(fields: [submissionId], references: [id])
+  gradedBy       User        @relation("TeacherGrades", fields: [gradedById], references: [id])
+
+  @@unique([studentId, assignmentId])
+}
+
+model Announcement {
+  id             String      @id @default(cuid())
+  schoolId       String
+  authorId       String
+  title          String
+  content        String
+  targetAudience String      // "ALL", "TEACHERS", "PARENTS", "CLASS"
+  targetClassId  String?
+  isUrgent       Boolean     @default(false)
+  createdAt      DateTime    @default(now())
+
+  school         School      @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  author         User        @relation("AuthoredNotices", fields: [authorId], references: [id])
+  targetClass    ClassGroup? @relation(fields: [targetClassId], references: [id])
+}
+
+model BehaviorRecord {
+  id         String   @id @default(cuid())
+  schoolId   String
+  studentId  String
+  teacherId  String
+  type       String   // "MERIT", "INFRACTION", "OBSERVATION"
+  category   String   // e.g. "Leadership", "Curiosity", "Disruption", "Integrity"
+  points     Int      @default(1)
+  note       String?
+  createdAt  DateTime @default(now())
+
+  school     School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  student    User     @relation("StudentBehaviors", fields: [studentId], references: [id], onDelete: Cascade)
+  teacher    User     @relation("TeacherBehaviors", fields: [teacherId], references: [id])
+}
+
+model DirectMessage {
+  id                  String   @id @default(cuid())
+  schoolId            String
+  senderId            String
+  receiverId          String
+  studentId           String?  // Optional student context
+  content             String
+  isPrivateParentOnly Boolean  @default(true) // Hidden from standard student views, visible only in parent mode with PIN
+  read                Boolean  @default(false)
+  createdAt           DateTime @default(now())
+
+  school              School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  sender              User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver            User     @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+}
+
