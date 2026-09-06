@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { login, getMe } from '../controllers/authController';
+import { login, getMe, registerSchool, registerTeacher } from '../controllers/authController';
 import { listSchools, getSchoolDetails } from '../controllers/schoolController';
 import { getTeacherClasses, getClassStudents, getStudent360 } from '../controllers/classController';
 import { getClassAttendanceByDate, recordBatchAttendance } from '../controllers/attendanceController';
@@ -38,6 +38,8 @@ const router = Router();
 // PUBLIC ENDPOINTS
 // ==========================================
 router.post('/auth/login', login);
+router.post('/auth/register-school', registerSchool);
+router.post('/auth/register-teacher', registerTeacher);
 router.get('/schools', listSchools);
 
 // ==========================================

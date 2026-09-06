@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Sidebar, NavView } from './components/Sidebar';
 import { TopNavbar } from './components/TopNavbar';
+import { LandingPage } from './pages/LandingPage';
 import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
 import { Attendance } from './pages/Attendance';
@@ -18,7 +19,7 @@ import { ParentPortal } from './pages/ParentPortal';
 import { ParentDiscussions } from './pages/ParentDiscussions';
 
 const MainApp: React.FC = () => {
-  const { user, loading } = useAuth();
+  const { user, loading, isAuthModalOpen, closeAuthModal } = useAuth();
   const [currentView, setCurrentView] = useState<NavView>('dashboard');
   const [selectedAssignId, setSelectedAssignId] = useState<string | undefined>(undefined);
 
@@ -55,8 +56,15 @@ const MainApp: React.FC = () => {
     );
   }
 
+  // When not authenticated, display the attractive institutional landing page
+  // with the auth modal overlay when triggered.
   if (!user) {
-    return <Login />;
+    return (
+      <>
+        <LandingPage />
+        {isAuthModalOpen && <Login isModal onClose={closeAuthModal} />}
+      </>
+    );
   }
 
   // 1. Dedicated Student Portal Web View
@@ -83,7 +91,7 @@ const MainApp: React.FC = () => {
     );
   }
 
-  // 3. Faculty / Teacher Workspace Shell
+  // 3. Faculty / Teacher / School Admin Workspace Shell
   return (
     <div className="app-shell">
       <Sidebar currentView={currentView} onNavigate={setCurrentView} />
@@ -118,12 +126,10 @@ const MainApp: React.FC = () => {
   );
 };
 
-export const App: React.FC = () => {
+export default function App() {
   return (
     <AuthProvider>
       <MainApp />
     </AuthProvider>
   );
-};
-
-export default App;
+}

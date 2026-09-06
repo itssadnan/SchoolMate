@@ -21,12 +21,41 @@ export interface User {
   school?: School;
 }
 
+export interface SchoolRegistrationData {
+  name: string;
+  code: string;
+  adminFirstName: string;
+  adminLastName: string;
+  email: string;
+  password: string;
+  phone?: string;
+  address?: string;
+  tagline?: string;
+}
+
+export interface TeacherRegistrationData {
+  schoolCode: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  password: string;
+  phone?: string;
+}
+
+export type AuthModalMode = 'login' | 'register-teacher' | 'register-school';
+
 interface AuthContextType {
   user: User | null;
   school: School | null;
   schools: School[];
   loading: boolean;
-  login: (schoolCode: string, email: string, password: string) => Promise<void>;
+  isAuthModalOpen: boolean;
+  authModalMode: AuthModalMode;
+  openAuthModal: (mode?: AuthModalMode) => void;
+  closeAuthModal: () => void;
+  login: (emailOrCode: string, passwordOrEmail: string, optionalPassword?: string) => Promise<void>;
+  registerSchool: (data: SchoolRegistrationData) => Promise<void>;
+  registerTeacher: (data: TeacherRegistrationData) => Promise<void>;
   logout: () => void;
   switchSchool: (school: School) => Promise<void>;
   selectSchoolTenant: (code: string) => void;
@@ -39,6 +68,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [school, setSchool] = useState<School | null>(null);
   const [schools, setSchools] = useState<School[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Global Auth Modal controls
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState<AuthModalMode>('login');
+
+  const openAuthModal = (mode: AuthModalMode = 'login') => {
+    setAuthModalMode(mode);
+    setIsAuthModalOpen(true);
+  };
+
+  const closeAuthModal = () => {
+    setIsAuthModalOpen(false);
+  };
 
   // Fetch all schools for tenant switcher
   const fetchSchools = async () => {
@@ -97,18 +139,82 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => window.removeEventListener('auth:unauthorized', handleUnauthorized);
   }, []);
 
-  const login = async (schoolCode: string, email: string, password: string) => {
-    ApiClient.setTenantCode(schoolCode);
+  /**
+   * Universal Login supporting both:
+   * 1. Modern: login(email, password, optionalSchoolCode)
+   * 2. Legacy: login(schoolCode, email, password)
+   */
+  const login = async (
+    arg1: string,
+    arg2: string,
+    arg3?: string
+  ) => {
+    let email = '';
+    let password = '';
+    let schoolCode: string | undefined = undefined;
+
+    // Check whether arg1 is an email or schoolCode
+    if (arg1.includes('@')) {
+      email = arg1;
+      password = arg2;
+      schoolCode = arg3;
+    } else {
+      schoolCode = arg1;
+      email = arg2;
+      password = arg3 || '';
+    }
+
+    if (schoolCode) {
+      ApiClient.setTenantCode(schoolCode);
+    }
+
     const res = await ApiClient.post<{ token: string; user: User; school: School }>('/auth/login', {
-      schoolCode,
       email,
       password,
+      schoolCode,
     });
 
     ApiClient.setToken(res.token);
+    ApiClient.setTenantCode(res.school.code);
     setUser(res.user);
     setSchool(res.school);
     localStorage.setItem('schoolmate_user', JSON.stringify(res.user));
+    setIsAuthModalOpen(false);
+  };
+
+  /**
+   * Register a New School Institution
+   */
+  const registerSchool = async (data: SchoolRegistrationData) => {
+    const res = await ApiClient.post<{ token: string; user: User; school: School }>(
+      '/auth/register-school',
+      data
+    );
+
+    ApiClient.setToken(res.token);
+    ApiClient.setTenantCode(res.school.code);
+    setUser(res.user);
+    setSchool(res.school);
+    localStorage.setItem('schoolmate_user', JSON.stringify(res.user));
+    await fetchSchools();
+    setIsAuthModalOpen(false);
+  };
+
+  /**
+   * Register a Teacher Under an Existing School
+   */
+  const registerTeacher = async (data: TeacherRegistrationData) => {
+    const res = await ApiClient.post<{ token: string; user: User; school: School }>(
+      '/auth/register-teacher',
+      data
+    );
+
+    ApiClient.setToken(res.token);
+    ApiClient.setTenantCode(res.school.code);
+    setUser(res.user);
+    setSchool(res.school);
+    localStorage.setItem('schoolmate_user', JSON.stringify(res.user));
+    setIsAuthModalOpen(false);
   };
 
   const logout = () => {
@@ -132,7 +238,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           ? 'sarah.jenkins@oakridge.edu'
           : 'robert.vance@stjude.edu';
 
-      await login(newSchool.code, email, 'password123');
+      await login(email, 'password123', newSchool.code);
     } catch (err) {
       console.warn('Auto switch login fallback to login screen', err);
       logout();
@@ -146,7 +252,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         school,
         schools,
         loading,
+        isAuthModalOpen,
+        authModalMode,
+        openAuthModal,
+        closeAuthModal,
         login,
+        registerSchool,
+        registerTeacher,
         logout,
         switchSchool,
         selectSchoolTenant,
