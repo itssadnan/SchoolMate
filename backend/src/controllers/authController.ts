@@ -79,20 +79,36 @@ export const login = async (req: TenantRequest, res: Response) => {
       return issueAuthResponse(res, user);
     }
 
-    // If multiple accounts exist for this email across schools, test password match
-    let validUser: typeof matchingUsers[0] | null = null;
+    // If multiple accounts exist for this email across schools
+    // 1. Verify password validity on at least one account
+    const accountsWithValidPassword: typeof matchingUsers = [];
     for (const u of matchingUsers) {
       if (await bcrypt.compare(password, u.passwordHash)) {
-        validUser = u;
-        break;
+        accountsWithValidPassword.push(u);
       }
     }
 
-    if (!validUser) {
+    if (accountsWithValidPassword.length === 0) {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
-    return issueAuthResponse(res, validUser);
+    // If only one account matched the password, log into that one directly
+    if (accountsWithValidPassword.length === 1) {
+      return issueAuthResponse(res, accountsWithValidPassword[0]);
+    }
+
+    // If password matches accounts in multiple schools, prompt the user to select their school
+    return res.status(200).json({
+      requiresSchoolSelection: true,
+      message: 'This email is registered under multiple schools. Please select your institution to continue.',
+      schools: accountsWithValidPassword.map((u) => ({
+        id: u.school.id,
+        name: u.school.name,
+        code: u.school.code,
+        role: u.role,
+        accentColor: u.school.accentColor,
+      })),
+    });
   } catch (error) {
     console.error('Login error:', error);
     return res.status(500).json({ error: 'Internal server error during login' });

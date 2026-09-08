@@ -56,13 +56,23 @@ export const Login: React.FC<LoginProps> = ({ isModal = false, initialMode = 'lo
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
+  // Multi-school detection state
+  const [detectedSchools, setDetectedSchools] = useState<any[]>([]);
+
   // Handle Login
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
     try {
-      await login(loginEmail, loginPassword, loginSchoolCode.trim() || undefined);
+      const res = await login(loginEmail, loginPassword, loginSchoolCode.trim() || undefined);
+      if (res?.requiresSchoolSelection) {
+        setDetectedSchools(res.schools || []);
+        setShowSchoolCodeInput(true);
+        if (res.schools?.length > 0) {
+          setLoginSchoolCode(res.schools[0].code);
+        }
+      }
     } catch (err: any) {
       setError(err.message || 'Login failed. Please check your credentials.');
     } finally {
@@ -336,6 +346,60 @@ export const Login: React.FC<LoginProps> = ({ isModal = false, initialMode = 'lo
               <Lock size={16} color="#94a3b8" style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)' }} />
             </div>
           </div>
+
+          {/* Multi-School Selection Prompt if email registered under 2+ schools */}
+          {detectedSchools.length > 0 && (
+            <div
+              style={{
+                backgroundColor: '#eff6ff',
+                border: '1px solid #bfdbfe',
+                borderRadius: '8px',
+                padding: '0.85rem',
+                marginBottom: '1.25rem',
+              }}
+            >
+              <div style={{ fontSize: '0.825rem', fontWeight: 700, color: '#1e3a8a', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <School size={16} /> Multiple Institutions Detected
+              </div>
+              <p style={{ fontSize: '0.78rem', color: '#334155', margin: '0 0 0.65rem', lineHeight: 1.4 }}>
+                This email is registered with multiple schools. Select your institution below to sign in:
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                {detectedSchools.map((s) => {
+                  const isSelected = loginSchoolCode.toUpperCase() === s.code.toUpperCase();
+                  return (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => {
+                        setLoginSchoolCode(s.code);
+                        login(loginEmail, loginPassword, s.code);
+                      }}
+                      style={{
+                        padding: '0.6rem 0.75rem',
+                        borderRadius: '6px',
+                        border: isSelected ? '2px solid #2563eb' : '1px solid #cbd5e1',
+                        backgroundColor: isSelected ? '#ffffff' : '#f8fafc',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontSize: '0.825rem', fontWeight: 700, color: '#1e293b' }}>{s.name}</div>
+                        <div style={{ fontSize: '0.7rem', color: '#64748b' }}>Role: {s.role}</div>
+                      </div>
+                      <span className="badge" style={{ backgroundColor: '#2563eb', color: '#ffffff', fontSize: '0.72rem' }}>
+                        {s.code}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Optional School Code Accordion */}
           <div style={{ marginBottom: '1.25rem' }}>

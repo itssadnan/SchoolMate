@@ -30,6 +30,7 @@ import {
   updateAiConfig,
 } from '../controllers/aiController';
 import { getParentChildren, getStudentDashboard } from '../controllers/mobileController';
+import { importStudents } from '../controllers/importController';
 import { authenticateToken, requireRole } from '../middleware/auth';
 
 const router = Router();
@@ -49,62 +50,70 @@ router.use(authenticateToken);
 
 router.get('/auth/me', getMe);
 router.get('/schools/details', getSchoolDetails);
-
-// ==========================================
-// TEACHER WORKSPACE ENDPOINTS
-// ==========================================
-router.get('/classes', getTeacherClasses);
-router.get('/classes/:classId/students', getClassStudents);
-router.get('/students/:studentId/360', getStudent360);
-
-// Attendance
-router.get('/attendance/:classId', getClassAttendanceByDate);
-router.post('/attendance/:classId/batch', recordBatchAttendance);
-
-// Assignments & Grading
-router.get('/assignments', getTeacherAssignments);
-router.post('/assignments', createAssignment);
-router.get('/assignments/:assignmentId/submissions', getAssignmentSubmissions);
-router.post('/assignments/:assignmentId/submissions/:studentId/grade', gradeSubmission);
-
-// Matrix Gradebook
-router.get('/gradebook/:classId', getClassGradebook);
-
-// Timetable & Live Period
-router.get('/timetable', getTeacherTimetable);
-router.get('/timetable/live', getLivePeriod);
-
-// Announcements & Communication
-router.get('/notices', getAnnouncements);
-router.post('/notices', createAnnouncement);
-
-// Pastoral Care & Behavior Merits
-router.post('/behavior', logBehavior);
-router.get('/classes/:classId/behaviors', getClassBehaviors);
-
-// Teacher AI Studio
-router.post('/ai/report-card', generateReportCardComment);
-router.post('/ai/lesson-plan', generateLessonPlan);
-router.post('/ai/rubric', generateRubric);
-router.post('/ai/intervention', generateIntervention);
-router.post('/ai/grading-feedback', generateGradingFeedback);
-router.get('/ai/config', getAiConfig);
-router.post('/ai/config', updateAiConfig);
-
-// Student Coursework Submission
-router.post('/student/assignments/:assignmentId/submit', submitHomework);
-
-// Parent-Teacher Direct Discussion & Parent PIN Protection
+router.get('/notices', getAnnouncements); // Announcements readable by all authenticated stakeholders
 router.get('/messages/threads', getThreads);
 router.get('/messages/:otherUserId', getConversation);
 router.post('/messages', sendMessage);
-router.post('/parent/verify-pin', verifyParentPin);
 
 // ==========================================
-// MOBILE READINESS ENDPOINTS (Phase 2)
+// TEACHER & FACULTY ENDPOINTS (Restricted)
 // ==========================================
-router.get('/mobile/parent/children', getParentChildren);
-router.get('/mobile/student/dashboard', getStudentDashboard);
+const facultyRoles = ['TEACHER', 'SCHOOL_ADMIN', 'SUPER_ADMIN'];
+
+router.get('/classes', requireRole(facultyRoles), getTeacherClasses);
+router.get('/classes/:classId/students', requireRole(facultyRoles), getClassStudents);
+router.get('/students/:studentId/360', requireRole(facultyRoles), getStudent360);
+router.post('/classes/import-students', requireRole(facultyRoles), importStudents);
+
+// Attendance
+router.get('/attendance/:classId', requireRole(facultyRoles), getClassAttendanceByDate);
+router.post('/attendance/:classId/batch', requireRole(facultyRoles), recordBatchAttendance);
+
+// Assignments & Grading Studio
+router.get('/assignments', requireRole(facultyRoles), getTeacherAssignments);
+router.post('/assignments', requireRole(facultyRoles), createAssignment);
+router.get('/assignments/:assignmentId/submissions', requireRole(facultyRoles), getAssignmentSubmissions);
+router.post('/assignments/:assignmentId/submissions/:studentId/grade', requireRole(facultyRoles), gradeSubmission);
+
+// Matrix Gradebook
+router.get('/gradebook/:classId', requireRole(facultyRoles), getClassGradebook);
+
+// Timetable & Live Period
+router.get('/timetable', requireRole(facultyRoles), getTeacherTimetable);
+router.get('/timetable/live', requireRole(facultyRoles), getLivePeriod);
+
+// Announcements (Creation restricted to staff/faculty)
+router.post('/notices', requireRole(facultyRoles), createAnnouncement);
+
+// Pastoral Care & Behavior Merits
+router.post('/behavior', requireRole(facultyRoles), logBehavior);
+router.get('/classes/:classId/behaviors', requireRole(facultyRoles), getClassBehaviors);
+
+// Pedagogical AI Studio
+router.post('/ai/report-card', requireRole(facultyRoles), generateReportCardComment);
+router.post('/ai/lesson-plan', requireRole(facultyRoles), generateLessonPlan);
+router.post('/ai/rubric', requireRole(facultyRoles), generateRubric);
+router.post('/ai/intervention', requireRole(facultyRoles), generateIntervention);
+router.post('/ai/grading-feedback', requireRole(facultyRoles), generateGradingFeedback);
+
+// ==========================================
+// ADMIN ONLY ENDPOINTS (Restricted from Teachers & Others)
+// ==========================================
+const adminRoles = ['SCHOOL_ADMIN', 'SUPER_ADMIN'];
+
+router.get('/ai/config', requireRole(adminRoles), getAiConfig);
+router.post('/ai/config', requireRole(adminRoles), updateAiConfig);
+
+// ==========================================
+// STUDENT ONLY ENDPOINTS (Restricted)
+// ==========================================
+router.post('/student/assignments/:assignmentId/submit', requireRole(['STUDENT']), submitHomework);
+router.get('/mobile/student/dashboard', requireRole(['STUDENT']), getStudentDashboard);
+
+// ==========================================
+// PARENT ONLY ENDPOINTS (Restricted)
+// ==========================================
+router.get('/mobile/parent/children', requireRole(['PARENT']), getParentChildren);
+router.post('/parent/verify-pin', requireRole(['PARENT']), verifyParentPin);
 
 export default router;
-

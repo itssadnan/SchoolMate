@@ -17,7 +17,9 @@ import { ApiClient } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
 export const AIStudio: React.FC = () => {
-  const { school } = useAuth();
+  const { school, user } = useAuth();
+  const isAdmin = user?.role === 'SCHOOL_ADMIN' || user?.role === 'SUPER_ADMIN';
+
   const [activeTab, setActiveTab] = useState<
     'report-card' | 'lesson-plan' | 'rubric' | 'intervention' | 'config'
   >('report-card');
@@ -58,7 +60,7 @@ export const AIStudio: React.FC = () => {
   const [ivResult, setIvResult] = useState<any>(null);
   const [ivLoading, setIvLoading] = useState(false);
 
-  // Config state
+  // Config state (Admin Only)
   const [config, setConfig] = useState<any>({
     provider: 'nvidia',
     baseURL: 'https://integrate.api.nvidia.com/v1',
@@ -72,21 +74,25 @@ export const AIStudio: React.FC = () => {
   useEffect(() => {
     const loadInitialData = async () => {
       try {
-        const [classList, cfg] = await Promise.all([
-          ApiClient.get('/classes'),
-          ApiClient.get('/ai/config'),
-        ]);
+        const classList = await ApiClient.get('/classes');
         setClasses(classList);
-        setConfig(cfg);
         if (classList.length > 0) {
           setSelectedClassId(classList[0].id);
+        }
+
+        // Only fetch technical AI config if the current user is an Administrator
+        if (isAdmin) {
+          try {
+            const cfg = await ApiClient.get('/ai/config');
+            setConfig(cfg);
+          } catch {}
         }
       } catch (err) {
         console.error('Failed to load AI studio setup:', err);
       }
     };
     loadInitialData();
-  }, [school]);
+  }, [school, isAdmin]);
 
   // Load students when class changes
   useEffect(() => {
@@ -222,19 +228,23 @@ export const AIStudio: React.FC = () => {
             Teacher AI Studio
           </h1>
           <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
-            Empowering educators with NVIDIA Build orchestrator, evidence-based reporting & lesson scaffolding
+            {isAdmin
+              ? 'Administrator AI Engine Configuration & Pedagogical Synthesis'
+              : 'Evidence-based report card synthesis, inquiry lesson planning, and rubric evaluation.'}
           </p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <span className="badge" style={{ backgroundColor: '#f5f3ff', color: '#6d28d9', border: '1px solid #ddd6fe' }}>
-            <Cpu size={14} />
-            Model: {config?.model?.split('/')[1] || 'Llama 3.3 70B'}
-          </span>
-          <span className="badge badge-success">
-            Zero-Cost Ready
-          </span>
-        </div>
+        {isAdmin && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span className="badge" style={{ backgroundColor: '#f5f3ff', color: '#6d28d9', border: '1px solid #ddd6fe' }}>
+              <Cpu size={14} />
+              Model: {config?.model?.split('/')[1] || 'Llama 3.3 70B'}
+            </span>
+            <span className="badge badge-success">
+              Zero-Cost Ready
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Tabs */}
@@ -274,7 +284,7 @@ export const AIStudio: React.FC = () => {
           onClick={() => setActiveTab('lesson-plan')}
         >
           <BookOpen size={16} />
-          45-Min Lesson Planner
+          Inquiry Lesson Planner
         </button>
 
         <button
@@ -288,8 +298,8 @@ export const AIStudio: React.FC = () => {
           }}
           onClick={() => setActiveTab('rubric')}
         >
-          <Layers size={16} />
-          4-Tier Rubric Builder
+          <Sparkles size={16} />
+          Assessment Rubric Generator
         </button>
 
         <button
@@ -307,20 +317,22 @@ export const AIStudio: React.FC = () => {
           Early Intervention Radar
         </button>
 
-        <button
-          className="btn"
-          style={{
-            borderBottom: activeTab === 'config' ? '2px solid var(--primary)' : 'none',
-            borderRadius: 0,
-            color: activeTab === 'config' ? 'var(--primary)' : 'var(--text-muted)',
-            fontWeight: activeTab === 'config' ? 700 : 500,
-            background: 'none',
-          }}
-          onClick={() => setActiveTab('config')}
-        >
-          <Settings size={16} />
-          AI Model & DB Settings
-        </button>
+        {isAdmin && (
+          <button
+            className="btn"
+            style={{
+              borderBottom: activeTab === 'config' ? '2px solid var(--primary)' : 'none',
+              borderRadius: 0,
+              color: activeTab === 'config' ? 'var(--primary)' : 'var(--text-muted)',
+              fontWeight: activeTab === 'config' ? 700 : 500,
+              background: 'none',
+            }}
+            onClick={() => setActiveTab('config')}
+          >
+            <Settings size={16} />
+            AI Model & Settings (Admin)
+          </button>
+        )}
       </div>
 
       {/* TAB 1: REPORT CARD WRITER */}

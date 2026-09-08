@@ -53,7 +53,7 @@ interface AuthContextType {
   authModalMode: AuthModalMode;
   openAuthModal: (mode?: AuthModalMode) => void;
   closeAuthModal: () => void;
-  login: (emailOrCode: string, passwordOrEmail: string, optionalPassword?: string) => Promise<void>;
+  login: (emailOrCode: string, passwordOrEmail: string, optionalPassword?: string) => Promise<any>;
   registerSchool: (data: SchoolRegistrationData) => Promise<void>;
   registerTeacher: (data: TeacherRegistrationData) => Promise<void>;
   logout: () => void;
@@ -168,18 +168,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       ApiClient.setTenantCode(schoolCode);
     }
 
-    const res = await ApiClient.post<{ token: string; user: User; school: School }>('/auth/login', {
+    const res = await ApiClient.post<{
+      token?: string;
+      user?: User;
+      school?: School;
+      requiresSchoolSelection?: boolean;
+      schools?: any[];
+      message?: string;
+    }>('/auth/login', {
       email,
       password,
       schoolCode,
     });
 
-    ApiClient.setToken(res.token);
-    ApiClient.setTenantCode(res.school.code);
-    setUser(res.user);
-    setSchool(res.school);
-    localStorage.setItem('schoolmate_user', JSON.stringify(res.user));
-    setIsAuthModalOpen(false);
+    if (res.requiresSchoolSelection) {
+      return {
+        requiresSchoolSelection: true,
+        schools: res.schools || [],
+        message: res.message,
+      };
+    }
+
+    if (res.token && res.user && res.school) {
+      ApiClient.setToken(res.token);
+      ApiClient.setTenantCode(res.school.code);
+      setUser(res.user);
+      setSchool(res.school);
+      localStorage.setItem('schoolmate_user', JSON.stringify(res.user));
+      setIsAuthModalOpen(false);
+    }
   };
 
   /**

@@ -78,12 +78,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => 
       icon: <Sliders size={18} />,
     },
     {
-      section: 'AI Assistant (NVIDIA NIM)',
+      section: 'Pedagogical Studio',
       view: 'ai-studio',
       label: 'Teacher AI Studio',
       icon: <Sparkles size={18} />,
-      badge: 'Free AI',
-      isAi: true,
     },
     {
       section: 'Pastoral & Community',
