@@ -9,7 +9,9 @@ services:
       - key: PORT
         value: 10000
       - key: DATABASE_URL
-        value: file:./schoolmate.db
+        sync: false
+      - key: DIRECT_URL
+        sync: false
       - key: JWT_SECRET
         generateValue: true
       - key: AI_PROVIDER

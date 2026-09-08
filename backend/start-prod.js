@@ -1,8 +1,8 @@
 const { execSync } = require('child_process');
 
-// Ensure DATABASE_URL fallback if not explicitly set in hosting environment
+// Validate DATABASE_URL for PostgreSQL
 if (!process.env.DATABASE_URL) {
-  process.env.DATABASE_URL = 'file:./schoolmate.db';
+  console.error('⚠️ Warning: DATABASE_URL environment variable is not defined!');
 }
 if (!process.env.JWT_SECRET) {
   process.env.JWT_SECRET = 'schoolmate-super-secret-jwt-key-2026';
