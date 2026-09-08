@@ -45,27 +45,54 @@ export class ApiClient {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
-    const response = await fetch(`${API_BASE}${endpoint}`, {
-      ...options,
-      headers,
-    });
+    try {
+      const response = await fetch(`${API_BASE}${endpoint}`, {
+        ...options,
+        headers,
+      });
 
-    if (response.status === 401) {
-      // Clear token and redirect to login if unauthorized
-      this.clearAuth();
-      window.dispatchEvent(new Event('auth:unauthorized'));
+      if (response.status === 401) {
+        // Clear token and notify subscribers
+        this.clearAuth();
+        window.dispatchEvent(new Event('auth:unauthorized'));
+      }
+
+      const contentType = response.headers.get('content-type') || '';
+      const isHtml = contentType.includes('text/html');
+
+      if (!response.ok) {
+        let errorMsg = `HTTP ${response.status} ${response.statusText}`;
+        if (isHtml) {
+          errorMsg = `API request to '${endpoint}' returned an HTML page (status ${response.status}). If deployed on Vercel, ensure VITE_API_URL points to the live backend server.`;
+        } else {
+          try {
+            const errorJson = await response.json();
+            errorMsg = errorJson.error || errorJson.message || errorMsg;
+          } catch {}
+        }
+        throw new Error(errorMsg);
+      }
+
+      if (response.status === 204) {
+        return {} as T;
+      }
+
+      if (isHtml) {
+        throw new Error(
+          `Unexpected HTML response from '${endpoint}'. Please ensure VITE_API_URL is properly configured.`
+        );
+      }
+
+      return await response.json();
+    } catch (err: any) {
+      // Re-throw with helpful diagnostics if network connection failed
+      if (err.name === 'TypeError' && err.message?.includes('fetch')) {
+        throw new Error(
+          `Unable to connect to SchoolMate backend (${API_BASE}). If on Render free tier, the server may be waking up from sleep. Please retry in a few seconds.`
+        );
+      }
+      throw err;
     }
-
-    if (!response.ok) {
-      let errorMsg = `Error ${response.status}`;
-      try {
-        const errorJson = await response.json();
-        errorMsg = errorJson.error || errorJson.message || errorMsg;
-      } catch {}
-      throw new Error(errorMsg);
-    }
-
-    return response.json();
   }
 
   static get<T = any>(endpoint: string) {

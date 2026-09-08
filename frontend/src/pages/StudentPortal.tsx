@@ -4,14 +4,14 @@ import {
   CheckCircle2,
   Clock,
   Award,
-  Send,
-  Lock,
-  Unlock,
-  ShieldAlert,
   Calendar,
   FileText,
-  MessageSquare,
   Sparkles,
+  Send,
+  AlertCircle,
+  TrendingUp,
+  UserCheck,
+  Bell,
 } from 'lucide-react';
 import { ApiClient } from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -27,18 +27,7 @@ export const StudentPortal: React.FC = () => {
   const [selectedAssign, setSelectedAssign] = useState<any>(null);
   const [submissionContent, setSubmissionContent] = useState('');
   const [submitting, setSubmitting] = useState(false);
-
-  // Parent Lock / Confidential Parent Zone state
-  const [parentPinModalOpen, setParentPinModalOpen] = useState(false);
-  const [pinInput, setPinInput] = useState('');
-  const [pinError, setPinError] = useState<string | null>(null);
-  const [parentModeUnlocked, setParentModeUnlocked] = useState(false);
-  const [parentInfo, setParentInfo] = useState<any>(null);
-
-  // Confidential Parent-Teacher Messaging State
-  const [messages, setMessages] = useState<any[]>([]);
-  const [replyText, setReplyText] = useState('');
-  const [sendingReply, setSendingReply] = useState(false);
+  const [submitSuccess, setSubmitSuccess] = useState(false);
 
   const fetchStudentDashboard = async () => {
     try {
@@ -60,6 +49,7 @@ export const StudentPortal: React.FC = () => {
     setSelectedAssign(assign);
     const existing = assign.submissions?.[0];
     setSubmissionContent(existing?.content || '');
+    setSubmitSuccess(false);
     setSubmitModalOpen(true);
   };
 
@@ -71,9 +61,12 @@ export const StudentPortal: React.FC = () => {
       await ApiClient.post(`/student/assignments/${selectedAssign.id}/submit`, {
         content: submissionContent,
       });
-      setSubmitModalOpen(false);
-      fetchStudentDashboard();
-      alert('Homework submitted successfully to your teacher!');
+      setSubmitSuccess(true);
+      await fetchStudentDashboard();
+      setTimeout(() => {
+        setSubmitModalOpen(false);
+        setSubmitSuccess(false);
+      }, 1200);
     } catch (err: any) {
       alert(`Submission failed: ${err.message}`);
     } finally {
@@ -81,62 +74,22 @@ export const StudentPortal: React.FC = () => {
     }
   };
 
-  // Verify Parent PIN to unlock confidential discussion
-  const handleVerifyParentPin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setPinError(null);
-    try {
-      const res = await ApiClient.post('/parent/verify-pin', {
-        pin: pinInput,
-        studentId: user?.id,
-      });
-      setParentInfo(res.parent);
-      setParentModeUnlocked(true);
-      setParentPinModalOpen(false);
-      setPinInput('');
+  if (loading) {
+    return (
+      <div style={{ textAlign: 'center', padding: '4rem 1rem' }}>
+        <div className="spinner" style={{ margin: '0 auto 1rem' }} />
+        <p style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Loading Student Workspace...</p>
+      </div>
+    );
+  }
 
-      // Load confidential teacher conversation
-      loadTeacherMessages(res.parent.id);
-    } catch (err: any) {
-      setPinError(err.message || 'Incorrect PIN');
-    }
-  };
-
-  const loadTeacherMessages = async (parentId: string) => {
-    try {
-      // Find teacher conversation thread
-      const threads = await ApiClient.get('/messages/threads');
-      if (threads.length > 0) {
-        const otherId = threads[0].otherUser.id;
-        const conv = await ApiClient.get(`/messages/${otherId}`);
-        setMessages(conv);
-      }
-    } catch (err) {
-      console.error('Failed to load messages:', err);
-    }
-  };
-
-  const handleSendParentReply = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!replyText.trim()) return;
-    setSendingReply(true);
-    try {
-      const teacherMsg = messages.find((m) => m.sender?.role === 'TEACHER');
-      const teacherId = teacherMsg?.senderId || (messages.length > 0 ? (messages[0].sender?.role === 'PARENT' ? messages[0].receiverId : messages[0].senderId) : 'sarah-jenkins-id');
-      await ApiClient.post('/messages', {
-        receiverId: teacherId,
-        content: replyText,
-        studentId: user?.id,
-        isPrivateParentOnly: true,
-      });
-      setReplyText('');
-      if (parentInfo) loadTeacherMessages(parentInfo.id);
-    } catch (err: any) {
-      alert(`Failed to send message: ${err.message}`);
-    } finally {
-      setSendingReply(false);
-    }
-  };
+  const attendanceRate = data?.attendanceRate ?? 100;
+  const gradeAverage = data?.gradeAverage ?? 94;
+  const merits = data?.merits ?? 5;
+  const assignments = data?.assignments || [];
+  const grades = data?.grades || [];
+  const timetable = data?.timetable || [];
+  const announcements = data?.announcements || [];
 
   return (
     <div>
@@ -149,273 +102,342 @@ export const StudentPortal: React.FC = () => {
           marginBottom: '1.5rem',
           paddingBottom: '1rem',
           borderBottom: '1px solid var(--border-subtle)',
+          flexWrap: 'wrap',
+          gap: '1rem',
         }}
       >
         <div>
-          <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            STUDENT PORTAL • {school?.name}
+          <div
+            style={{
+              fontSize: '0.8rem',
+              fontWeight: 700,
+              color: 'var(--primary)',
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+            }}
+          >
+            STUDENT ACADEMIC WORKSPACE • {school?.name}
           </div>
-          <h1 style={{ fontSize: '1.65rem', marginTop: '0.2rem' }}>
-            Welcome back, {user?.firstName} {user?.lastName}!
+          <h1 style={{ fontSize: '1.75rem', marginTop: '0.2rem', fontWeight: 800 }}>
+            Welcome back, {user?.firstName}! 🎒
           </h1>
           <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
-            Class: <strong>{data?.class || 'Grade 9-A'}</strong> • Roll Number: <strong>#{data?.rollNumber || '01'}</strong>
+            Class: <strong>{data?.class || 'Grade 9-A'}</strong> • Roll Number: <strong>#{data?.rollNumber || '01'}</strong> • Academic Year 2026-2027
           </p>
         </div>
 
-        {/* Parent Zone Secure Toggle */}
-        <div>
-          {parentModeUnlocked ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span className="badge badge-success" style={{ padding: '0.4rem 0.75rem' }}>
-                <Unlock size={14} />
-                Parent Mode Active ({parentInfo?.firstName} {parentInfo?.lastName})
-              </span>
-              <button
-                className="btn btn-secondary btn-sm"
-                onClick={() => setParentModeUnlocked(false)}
-              >
-                <Lock size={14} /> Lock Parent Zone
-              </button>
-            </div>
-          ) : (
-            <button
-              className="btn btn-secondary"
-              onClick={() => setParentPinModalOpen(true)}
-              style={{
-                border: '1px solid var(--primary-border)',
-                backgroundColor: '#f8fafc',
-                fontWeight: 600,
-              }}
-            >
-              <Lock size={16} color="var(--primary)" />
-              <span>Parent Access (PIN Protected)</span>
-            </button>
-          )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <span className="badge badge-success" style={{ padding: '0.45rem 0.85rem', fontSize: '0.8rem' }}>
+            <UserCheck size={14} /> Enrolled Student
+          </span>
         </div>
       </div>
 
-      {/* CONFIDENTIAL PARENT ZONE (RENDERED WHEN UNLOCKED BY PARENT PIN) */}
-      {parentModeUnlocked && (
-        <div
-          className="card"
-          style={{
-            marginBottom: '1.75rem',
-            border: '2px solid var(--primary)',
-            backgroundColor: '#ffffff',
-            boxShadow: 'var(--shadow-md)',
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: '1rem',
-              paddingBottom: '0.75rem',
-              borderBottom: '1px solid var(--border-subtle)',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <ShieldAlert size={20} color="var(--primary)" />
-              <h3 style={{ fontSize: '1.15rem' }}>
-                Confidential Teacher - Parent Discussion Channel
+      {/* Academic Highlights Cards */}
+      <div className="grid-4" style={{ marginBottom: '1.75rem' }}>
+        <div className="card">
+          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+            ATTENDANCE RECORD
+          </div>
+          <div style={{ fontSize: '1.85rem', fontWeight: 800, color: '#065f46', marginTop: '0.25rem' }}>
+            {attendanceRate}%
+          </div>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.35rem' }}>
+            {data?.attendanceRecords?.length ? `${data.attendanceRecords.length} sessions logged` : 'Consistent morning presence'}
+          </div>
+        </div>
+
+        <div className="card">
+          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+            ACADEMIC AVERAGE
+          </div>
+          <div style={{ fontSize: '1.85rem', fontWeight: 800, color: 'var(--primary)', marginTop: '0.25rem' }}>
+            {gradeAverage}%
+          </div>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.35rem' }}>
+            {gradeAverage >= 90 ? 'Grade A+ (High Distinction)' : gradeAverage >= 80 ? 'Grade A (Proficient)' : 'Grade B'}
+          </div>
+        </div>
+
+        <div className="card">
+          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+            POSITIVE CONDUCT MERITS
+          </div>
+          <div style={{ fontSize: '1.85rem', fontWeight: 800, color: '#4338ca', marginTop: '0.25rem' }}>
+            +{merits} pts
+          </div>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.35rem' }}>
+            Recognized for curiosity & initiative
+          </div>
+        </div>
+
+        <div className="card">
+          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+            ASSIGNED COURSEWORK
+          </div>
+          <div style={{ fontSize: '1.85rem', fontWeight: 800, color: '#0f172a', marginTop: '0.25rem' }}>
+            {assignments.length}
+          </div>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.35rem' }}>
+            Active tasks in current term
+          </div>
+        </div>
+      </div>
+
+      {/* Main Grid: Assignments Hub & Evaluated Grades */}
+      <div className="grid-2" style={{ marginBottom: '1.75rem' }}>
+        {/* Coursework & Homework Hub */}
+        <div className="card">
+          <div className="card-header">
+            <div>
+              <h3 className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <FileText size={18} color="var(--primary)" />
+                My Coursework & Homework
               </h3>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                Review criteria and submit work directly to your teacher
+              </div>
             </div>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-              Encrypted • Private to Parent & Faculty Only
+            <span className="badge" style={{ backgroundColor: '#eff6ff', color: 'var(--primary)' }}>
+              {assignments.length} Tasks
             </span>
           </div>
 
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
-            This discussion thread is private between you and {user?.firstName}'s subject educators. Students cannot view or edit these messages without the security PIN.
-          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+            {assignments.length === 0 ? (
+              <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                No active assignments assigned for this cohort yet.
+              </div>
+            ) : (
+              assignments.map((a: any) => {
+                const submission = a.submissions?.[0];
+                const isGraded = submission?.status === 'GRADED';
+                const isSubmitted = submission?.status === 'SUBMITTED';
 
-          {/* Chat Messages */}
-          <div
-            style={{
-              maxHeight: '280px',
-              overflowY: 'auto',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '0.75rem',
-              padding: '1rem',
-              backgroundColor: '#f8fafc',
-              borderRadius: 'var(--radius-sm)',
-              border: '1px solid var(--border-subtle)',
-              marginBottom: '1rem',
-            }}
-          >
-            {messages.length > 0 ? (
-              messages.map((m) => {
-                const isParentSender = m.senderId !== user?.id && m.sender?.role === 'PARENT';
                 return (
                   <div
-                    key={m.id}
+                    key={a.id}
                     style={{
-                      alignSelf: isParentSender ? 'flex-end' : 'flex-start',
-                      maxWidth: '75%',
-                      padding: '0.75rem 1rem',
+                      padding: '1rem',
                       borderRadius: 'var(--radius-sm)',
-                      backgroundColor: isParentSender ? 'var(--primary)' : '#ffffff',
-                      color: isParentSender ? '#ffffff' : 'var(--text-main)',
-                      border: isParentSender ? 'none' : '1px solid var(--border-subtle)',
+                      border: '1px solid var(--border-subtle)',
+                      backgroundColor: '#ffffff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      flexWrap: 'wrap',
+                      gap: '0.75rem',
                     }}
                   >
-                    <div
-                      style={{
-                        fontSize: '0.72rem',
-                        fontWeight: 700,
-                        marginBottom: '0.25rem',
-                        color: isParentSender ? '#bfdbfe' : 'var(--primary)',
-                      }}
-                    >
-                      {m.sender?.firstName} {m.sender?.lastName} ({m.sender?.role})
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.25rem' }}>
+                        <span className="badge badge-info">{a.subject?.name || 'Academic'}</span>
+                        <span className="badge" style={{ backgroundColor: '#f1f5f9', color: '#475569' }}>
+                          {a.category || 'Assignment'}
+                        </span>
+                        {isGraded ? (
+                          <span className="badge badge-success">
+                            ✓ Graded
+                          </span>
+                        ) : isSubmitted ? (
+                          <span className="badge badge-warning">
+                            Submitted • Under Review
+                          </span>
+                        ) : (
+                          <span className="badge badge-danger">Due Soon</span>
+                        )}
+                      </div>
+
+                      <h4 style={{ fontSize: '0.95rem', fontWeight: 700, margin: '0.2rem 0' }}>{a.title}</h4>
+                      <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                        Due: <strong>{new Date(a.dueAt).toLocaleDateString()}</strong> • Max: {a.maxPoints} pts
+                      </div>
                     </div>
-                    <div style={{ fontSize: '0.875rem', lineHeight: 1.5 }}>{m.content}</div>
-                    <div
-                      style={{
-                        fontSize: '0.68rem',
-                        marginTop: '0.35rem',
-                        textAlign: 'right',
-                        color: isParentSender ? '#cbd5e1' : 'var(--text-muted)',
-                      }}
-                    >
-                      {new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+
+                    <div>
+                      <button
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => handleOpenSubmit(a)}
+                        style={{ fontWeight: 600 }}
+                      >
+                        {isSubmitted || isGraded ? 'View Submission' : 'Turn In Work'}
+                      </button>
                     </div>
                   </div>
                 );
               })
-            ) : (
-              <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '1.5rem' }}>
-                No message history yet. Start a confidential message below.
-              </div>
             )}
           </div>
-
-          {/* Reply Input */}
-          <form onSubmit={handleSendParentReply} style={{ display: 'flex', gap: '0.75rem' }}>
-            <input
-              type="text"
-              className="form-input"
-              placeholder="Type private message to Dr. Sarah Jenkins..."
-              value={replyText}
-              onChange={(e) => setReplyText(e.target.value)}
-              required
-            />
-            <button type="submit" className="btn btn-primary" disabled={sendingReply}>
-              <Send size={16} /> Send Reply
-            </button>
-          </form>
-        </div>
-      )}
-
-      {/* Academic Highlights Cards */}
-      <div className="grid-3" style={{ marginBottom: '1.5rem' }}>
-        <div className="card">
-          <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)' }}>
-            MY ATTENDANCE RECORD
-          </div>
-          <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#065f46', marginTop: '0.25rem' }}>
-            100%
-          </div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.35rem' }}>
-            Consistent, on-time morning presence
-          </div>
         </div>
 
+        {/* Evaluated Grades & Teacher Remarks */}
         <div className="card">
-          <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)' }}>
-            CURRENT ACADEMIC AVERAGE
+          <div className="card-header">
+            <div>
+              <h3 className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Award size={18} color="var(--primary)" />
+                Evaluated Grades & Teacher Feedback
+              </h3>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                Constructive remarks and criterion breakdown
+              </div>
+            </div>
           </div>
-          <div style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--primary)', marginTop: '0.25rem' }}>
-            94% (Grade A+)
-          </div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.35rem' }}>
-            Across Physics, Calculus & Sciences
-          </div>
-        </div>
 
-        <div className="card">
-          <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)' }}>
-            POSITIVE MERITS EARNED
-          </div>
-          <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#4338ca', marginTop: '0.25rem' }}>
-            +5 Points
-          </div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.35rem' }}>
-            Awarded for Curiosity & Inquiry
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+            {grades.length === 0 ? (
+              <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                <Award size={32} style={{ opacity: 0.3, margin: '0 auto 0.5rem' }} />
+                <div>No evaluated assessments yet. Complete assignments to receive grades!</div>
+              </div>
+            ) : (
+              grades.map((g: any) => {
+                const maxPoints = g.assignment?.maxPoints || 100;
+                const percentage = Math.round((g.pointsAwarded / maxPoints) * 100);
+                return (
+                  <div
+                    key={g.id}
+                    style={{
+                      padding: '1rem',
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid var(--border-subtle)',
+                      backgroundColor: '#ffffff',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+                      <span className="badge badge-success">
+                        Score: {g.pointsAwarded} / {maxPoints} pts ({percentage}%)
+                      </span>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                        {new Date(g.gradedAt).toLocaleDateString()}
+                      </span>
+                    </div>
+
+                    <h4 style={{ fontSize: '0.925rem', fontWeight: 700 }}>
+                      {g.assignment?.title || 'Assignment Evaluation'}
+                    </h4>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.4rem' }}>
+                      Subject: {g.assignment?.subject?.name || 'Core Curriculum'}
+                    </div>
+
+                    {g.feedback && (
+                      <p
+                        style={{
+                          fontSize: '0.825rem',
+                          color: '#334155',
+                          backgroundColor: '#f8fafc',
+                          padding: '0.65rem 0.85rem',
+                          borderRadius: 'var(--radius-xs)',
+                          borderLeft: '3px solid var(--primary)',
+                          fontStyle: 'italic',
+                          margin: 0,
+                          lineHeight: 1.5,
+                        }}
+                      >
+                        "{g.feedback}"
+                      </p>
+                    )}
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
       </div>
 
-      {/* Coursework & Homework Hub */}
-      <div className="card" style={{ marginBottom: '1.5rem' }}>
-        <div className="card-header">
-          <h3 className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <FileText size={18} color="var(--primary)" />
-            Coursework & Assignments
-          </h3>
-          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-            {data?.assignments?.length || 0} Total Tasks
-          </span>
+      {/* Lower Row: Daily Timetable & Campus Bulletins */}
+      <div className="grid-2">
+        {/* Class Timetable */}
+        <div className="card">
+          <div className="card-header">
+            <h3 className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Calendar size={18} color="var(--primary)" />
+              Weekly Class Schedule ({data?.class || 'Grade 9-A'})
+            </h3>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            {timetable.length === 0 ? (
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>No schedule slots found.</p>
+            ) : (
+              timetable.slice(0, 5).map((slot: any) => (
+                <div
+                  key={slot.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '0.65rem 0.85rem',
+                    backgroundColor: '#f8fafc',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--border-subtle)',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                    <div
+                      style={{
+                        padding: '0.3rem 0.6rem',
+                        backgroundColor: '#e2e8f0',
+                        borderRadius: '4px',
+                        fontSize: '0.72rem',
+                        fontWeight: 700,
+                      }}
+                    >
+                      {slot.startTime} - {slot.endTime}
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.85rem', fontWeight: 700 }}>{slot.subject?.name}</div>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                        {slot.room} • {slot.teacher ? `Dr. ${slot.teacher.lastName}` : 'Faculty Instructor'}
+                      </div>
+                    </div>
+                  </div>
+                  <span className="badge" style={{ backgroundColor: '#eff6ff', color: 'var(--primary)', fontSize: '0.7rem' }}>
+                    {slot.dayOfWeek}
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          {data?.assignments?.map((a: any) => {
-            const submission = a.submissions?.[0];
-            const isGraded = submission?.status === 'GRADED';
-            const isSubmitted = submission?.status === 'SUBMITTED';
+        {/* Campus Notices */}
+        <div className="card">
+          <div className="card-header">
+            <h3 className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Bell size={18} color="var(--primary)" />
+              Campus Bulletins & Announcements
+            </h3>
+          </div>
 
-            return (
-              <div
-                key={a.id}
-                style={{
-                  padding: '1rem',
-                  borderRadius: 'var(--radius-sm)',
-                  border: '1px solid var(--border-subtle)',
-                  backgroundColor: '#ffffff',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  flexWrap: 'wrap',
-                  gap: '1rem',
-                }}
-              >
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-                    <span className="badge badge-info">{a.subject?.name}</span>
-                    <span className="badge" style={{ backgroundColor: '#f1f5f9', color: '#475569' }}>
-                      {a.category}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+            {announcements.length === 0 ? (
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>No new school notices today.</p>
+            ) : (
+              announcements.map((notice: any) => (
+                <div
+                  key={notice.id}
+                  style={{
+                    padding: '0.75rem 0.85rem',
+                    backgroundColor: '#ffffff',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--border-subtle)',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+                    <span className="badge badge-info">{notice.category || 'General'}</span>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                      {new Date(notice.createdAt).toLocaleDateString()}
                     </span>
-                    {isGraded ? (
-                      <span className="badge badge-success">
-                        Graded: {a.submissions[0]?.grade?.pointsAwarded || 94}/{a.maxPoints} pts
-                      </span>
-                    ) : isSubmitted ? (
-                      <span className="badge badge-warning">Submitted • Awaiting Review</span>
-                    ) : (
-                      <span className="badge badge-danger">Not Submitted Yet</span>
-                    )}
                   </div>
-
-                  <h4 style={{ fontSize: '1rem', fontWeight: 700 }}>{a.title}</h4>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-                    Due: <strong>{new Date(a.dueAt).toLocaleDateString()}</strong> • Max Marks: {a.maxPoints} pts
-                  </div>
+                  <h4 style={{ fontSize: '0.875rem', fontWeight: 700, margin: '0.2rem 0' }}>{notice.title}</h4>
+                  <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: 0, lineHeight: 1.4 }}>
+                    {notice.content}
+                  </p>
                 </div>
-
-                <div>
-                  <button
-                    className="btn btn-secondary btn-sm"
-                    onClick={() => handleOpenSubmit(a)}
-                  >
-                    {isSubmitted || isGraded ? 'Review / Edit Submission' : 'Submit Homework'}
-                  </button>
-                </div>
-              </div>
-            );
-          })}
+              ))
+            )}
+          </div>
         </div>
       </div>
 
@@ -423,26 +445,46 @@ export const StudentPortal: React.FC = () => {
       <Modal
         isOpen={submitModalOpen}
         onClose={() => setSubmitModalOpen(false)}
-        title={`Submit Coursework: ${selectedAssign?.title}`}
+        title={`Turn In Coursework: ${selectedAssign?.title}`}
       >
         <form onSubmit={handleSubmitHomework}>
           <div style={{ marginBottom: '1rem', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-            {selectedAssign?.description}
+            <strong>Instructions:</strong> {selectedAssign?.description || 'Submit your completed assignment solutions or essay below.'}
           </div>
 
+          {submitSuccess && (
+            <div
+              style={{
+                padding: '0.75rem',
+                backgroundColor: '#ecfdf5',
+                border: '1px solid #10b981',
+                borderRadius: 'var(--radius-sm)',
+                color: '#065f46',
+                fontWeight: 600,
+                fontSize: '0.85rem',
+                marginBottom: '1rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+              }}
+            >
+              <CheckCircle2 size={16} /> Coursework submitted successfully to your instructor!
+            </div>
+          )}
+
           <div className="form-group">
-            <label className="form-label">Your Solution / Submission Notes</label>
+            <label className="form-label">Your Solution / Submission Text / Link</label>
             <textarea
               className="form-textarea"
               rows={6}
-              placeholder="Type your experimental conclusions, formulas, or link to work..."
+              placeholder="Type your experimental conclusions, mathematical formulas, or shared document link..."
               value={submissionContent}
               onChange={(e) => setSubmissionContent(e.target.value)}
               required
             />
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1rem' }}>
             <button
               type="button"
               className="btn btn-secondary"
@@ -451,93 +493,7 @@ export const StudentPortal: React.FC = () => {
               Cancel
             </button>
             <button type="submit" className="btn btn-primary" disabled={submitting}>
-              {submitting ? 'Submitting...' : 'Turn In Assignment'}
-            </button>
-          </div>
-        </form>
-      </Modal>
-
-      {/* Parent PIN Prompt Modal */}
-      <Modal
-        isOpen={parentPinModalOpen}
-        onClose={() => setParentPinModalOpen(false)}
-        title="Parent Security PIN Verification"
-        maxWidth="440px"
-      >
-        <form onSubmit={handleVerifyParentPin}>
-          <div style={{ textAlign: 'center', marginBottom: '1.25rem' }}>
-            <div
-              style={{
-                width: 48,
-                height: 48,
-                borderRadius: '50%',
-                backgroundColor: 'var(--primary-light)',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'var(--primary)',
-                marginBottom: '0.75rem',
-              }}
-            >
-              <Lock size={24} />
-            </div>
-            <h4 style={{ fontSize: '1.1rem', marginBottom: '0.25rem' }}>
-              Parent Zone Security Check
-            </h4>
-            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-              Enter your 4-digit Parent Security PIN to access confidential communications with teachers.
-              <br />
-              <strong>(Default Demo PIN: 1234)</strong>
-            </p>
-          </div>
-
-          {pinError && (
-            <div
-              style={{
-                backgroundColor: 'var(--danger-bg)',
-                color: 'var(--danger)',
-                border: '1px solid var(--danger-border)',
-                borderRadius: 'var(--radius-sm)',
-                padding: '0.65rem',
-                fontSize: '0.8rem',
-                marginBottom: '1rem',
-                textAlign: 'center',
-              }}
-            >
-              {pinError}
-            </div>
-          )}
-
-          <div className="form-group" style={{ textAlign: 'center' }}>
-            <input
-              type="password"
-              maxLength={4}
-              className="form-input"
-              style={{
-                textAlign: 'center',
-                fontSize: '1.5rem',
-                letterSpacing: '0.5em',
-                width: '180px',
-                margin: '0 auto',
-              }}
-              value={pinInput}
-              onChange={(e) => setPinInput(e.target.value)}
-              placeholder="••••"
-              autoFocus
-              required
-            />
-          </div>
-
-          <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem', marginTop: '1.25rem' }}>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={() => setParentPinModalOpen(false)}
-            >
-              Cancel
-            </button>
-            <button type="submit" className="btn btn-primary">
-              Unlock Parent Zone
+              {submitting ? 'Submitting...' : 'Turn In to Teacher'}
             </button>
           </div>
         </form>

@@ -6,6 +6,13 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('🌱 Starting comprehensive multi-school seeding...');
 
+  // Check if database already has data
+  const existingSchool = await prisma.school.findFirst();
+  if (existingSchool && process.env.FORCE_SEED !== 'true') {
+    console.log(`ℹ️ Database already initialized with school: "${existingSchool.name}". Skipping data wipe.`);
+    return;
+  }
+
   // Clean existing data
   await prisma.directMessage.deleteMany();
   await prisma.behaviorRecord.deleteMany();

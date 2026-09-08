@@ -16,11 +16,11 @@ try {
   process.exit(1);
 }
 
-console.log('🌱 Seeding initial school data and demo personas...');
+console.log('🌱 Checking database initialization state...');
 try {
   execSync('npx tsx prisma/seed.ts', { stdio: 'inherit', env: process.env });
 } catch (e) {
-  console.warn('Seed step completed:', e.message);
+  console.warn('Seed step completed with notice:', e.message);
 }
 
 console.log('🚀 Launching SchoolMate server...');

@@ -10,6 +10,9 @@ import {
   Calendar,
   Clock,
   ExternalLink,
+  Bell,
+  AlertCircle,
+  Sparkles,
 } from 'lucide-react';
 import { ApiClient } from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -18,7 +21,9 @@ export const ParentPortal: React.FC = () => {
   const { user, school } = useAuth();
   const [children, setChildren] = useState<any[]>([]);
   const [selectedChild, setSelectedChild] = useState<any>(null);
+  const [announcements, setAnnouncements] = useState<any[]>([]);
   const [messages, setMessages] = useState<any[]>([]);
+  const [activeTeacherId, setActiveTeacherId] = useState<string>('');
   const [replyText, setReplyText] = useState('');
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -26,22 +31,41 @@ export const ParentPortal: React.FC = () => {
   const fetchParentData = async () => {
     try {
       const res = await ApiClient.get('/mobile/parent/children');
-      setChildren(res.children || []);
-      if (res.children?.length > 0) {
-        setSelectedChild(res.children[0]);
+      const kids = res.children || [];
+      setChildren(kids);
+      setAnnouncements(res.announcements || []);
+
+      if (kids.length > 0) {
+        const firstKid = kids[0];
+        setSelectedChild(firstKid);
+
+        // Find primary teacher ID for the child
+        const teacherFromTimetable = firstKid.timetable?.find((t: any) => t.teacher?.id)?.teacher?.id;
+        if (teacherFromTimetable) {
+          setActiveTeacherId(teacherFromTimetable);
+        }
       }
 
       // Load confidential teacher messages
-      const threads = await ApiClient.get('/messages/threads');
-      if (threads.length > 0) {
-        const otherId = threads[0].otherUser.id;
-        const conv = await ApiClient.get(`/messages/${otherId}`);
-        setMessages(conv);
-      }
+      await loadTeacherThreads();
     } catch (err) {
       console.error('Failed to load parent portal data:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadTeacherThreads = async () => {
+    try {
+      const threads = await ApiClient.get('/messages/threads');
+      if (threads.length > 0) {
+        const targetTeacherId = threads[0].otherUser.id;
+        setActiveTeacherId(targetTeacherId);
+        const conv = await ApiClient.get(`/messages/${targetTeacherId}`);
+        setMessages(conv || []);
+      }
+    } catch (err) {
+      console.error('Failed to load threads:', err);
     }
   };
 
@@ -52,34 +76,50 @@ export const ParentPortal: React.FC = () => {
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!replyText.trim()) return;
+
+    // Resolve teacher recipient
+    let recipientId = activeTeacherId;
+    if (!recipientId && selectedChild?.timetable?.length > 0) {
+      recipientId = selectedChild.timetable.find((t: any) => t.teacher?.id)?.teacher?.id;
+    }
+
+    if (!recipientId) {
+      alert('Unable to identify class teacher for this student.');
+      return;
+    }
+
     setSending(true);
     try {
-      const teacherId =
-        messages[0]?.senderId === user?.id
-          ? messages[0]?.receiverId
-          : messages[0]?.senderId;
-
       await ApiClient.post('/messages', {
-        receiverId: teacherId || 'sarah-jenkins-id',
+        receiverId: recipientId,
         content: replyText,
         studentId: selectedChild?.id,
         isPrivateParentOnly: true,
       });
 
       setReplyText('');
-      // Refresh messages
-      const threads = await ApiClient.get('/messages/threads');
-      if (threads.length > 0) {
-        const otherId = threads[0].otherUser.id;
-        const conv = await ApiClient.get(`/messages/${otherId}`);
-        setMessages(conv);
-      }
+      // Reload conversation
+      const conv = await ApiClient.get(`/messages/${recipientId}`);
+      setMessages(conv || []);
     } catch (err: any) {
       alert(`Message delivery failed: ${err.message}`);
     } finally {
       setSending(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div style={{ textAlign: 'center', padding: '4rem 1rem' }}>
+        <div className="spinner" style={{ margin: '0 auto 1rem' }} />
+        <p style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Loading Guardian Dashboard...</p>
+      </div>
+    );
+  }
+
+  const attendanceRate = selectedChild?.attendanceRate ?? 100;
+  const recentGrades = selectedChild?.recentGrades || [];
+  const upcomingAssignments = selectedChild?.upcomingAssignments || [];
 
   return (
     <div>
@@ -92,68 +132,99 @@ export const ParentPortal: React.FC = () => {
           marginBottom: '1.5rem',
           paddingBottom: '1rem',
           borderBottom: '1px solid var(--border-subtle)',
+          flexWrap: 'wrap',
+          gap: '1rem',
         }}
       >
         <div>
-          <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            PARENT & GUARDIAN PORTAL • {school?.name}
+          <div
+            style={{
+              fontSize: '0.8rem',
+              fontWeight: 700,
+              color: 'var(--primary)',
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+            }}
+          >
+            GUARDIAN & PARENT DASHBOARD • {school?.name}
           </div>
-          <h1 style={{ fontSize: '1.65rem', marginTop: '0.2rem' }}>
-            Guardian Dashboard: {user?.firstName} {user?.lastName}
+          <h1 style={{ fontSize: '1.75rem', marginTop: '0.2rem', fontWeight: 800 }}>
+            Family Portal: {user?.firstName} {user?.lastName}
           </h1>
           <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
-            Supervising: <strong>{selectedChild?.firstName} {selectedChild?.lastName}</strong> ({selectedChild?.class})
+            Supervising Scholar: <strong>{selectedChild?.firstName} {selectedChild?.lastName}</strong> ({selectedChild?.class || 'Grade 9-A'})
           </p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <span className="badge badge-success">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          {children.length > 1 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Child:</span>
+              <select
+                className="form-select"
+                style={{ padding: '0.35rem 0.75rem', fontSize: '0.85rem' }}
+                value={selectedChild?.id}
+                onChange={(e) => {
+                  const kid = children.find((c) => c.id === e.target.value);
+                  if (kid) setSelectedChild(kid);
+                }}
+              >
+                {children.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.firstName} {c.lastName} ({c.class})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <span className="badge badge-success" style={{ padding: '0.45rem 0.85rem' }}>
             <ShieldCheck size={14} /> Verified Guardian Access
           </span>
         </div>
       </div>
 
       {/* Child Metrics Snapshot */}
-      <div className="grid-3" style={{ marginBottom: '1.5rem' }}>
+      <div className="grid-3" style={{ marginBottom: '1.75rem' }}>
         <div className="card">
-          <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)' }}>
-            {selectedChild?.firstName.toUpperCase()}'S ATTENDANCE RATE
+          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+            {selectedChild?.firstName?.toUpperCase() || 'STUDENT'}'S ATTENDANCE RATE
           </div>
-          <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#065f46', marginTop: '0.25rem' }}>
-            {selectedChild?.attendanceRate || 100}%
+          <div style={{ fontSize: '1.85rem', fontWeight: 800, color: '#065f46', marginTop: '0.25rem' }}>
+            {attendanceRate}%
           </div>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.35rem' }}>
-            Marked present this morning at 08:25 AM
+            Morning presence confirmed on campus
           </div>
         </div>
 
         <div className="card">
-          <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)' }}>
-            ACADEMIC PROGRESS
+          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+            ACADEMIC PERFORMANCE
           </div>
-          <div style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--primary)', marginTop: '0.25rem' }}>
-            Grade A+ (94%)
+          <div style={{ fontSize: '1.85rem', fontWeight: 800, color: 'var(--primary)', marginTop: '0.25rem' }}>
+            {recentGrades.length > 0 ? 'Grade A+ (Distinction)' : 'Active Term 1'}
           </div>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.35rem' }}>
-            Physics Lab: 94/100 pts • Calculus: 48/50 pts
+            {recentGrades.length} graded coursework assessments
           </div>
         </div>
 
         <div className="card">
-          <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)' }}>
-            HOMEROOM TEACHER
+          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+            CLASS & HOMEROOM
           </div>
-          <div style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)', marginTop: '0.25rem' }}>
-            Dr. Sarah Jenkins
+          <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-main)', marginTop: '0.35rem' }}>
+            {selectedChild?.class || 'Grade 9-A'}
           </div>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.35rem' }}>
-            Department of Physics • Room 302
+            Roll #{selectedChild?.rollNumber || '01'} • Room 302
           </div>
         </div>
       </div>
 
-      {/* Main Grid: Discussion Room + Recent Work */}
-      <div className="grid-2">
+      {/* Main Grid: Discussion Room + Evaluated Work */}
+      <div className="grid-2" style={{ marginBottom: '1.75rem' }}>
         {/* Confidential Teacher - Parent Discussion Room */}
         <div className="card" style={{ display: 'flex', flexDirection: 'column' }}>
           <div className="card-header">
@@ -163,7 +234,7 @@ export const ParentPortal: React.FC = () => {
                 Direct Teacher Communication Channel
               </h3>
               <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                Confidential 1-on-1 thread with Dr. Sarah Jenkins
+                Confidential 1-on-1 private messaging with {selectedChild?.firstName}'s educators
               </div>
             </div>
           </div>
@@ -172,7 +243,7 @@ export const ParentPortal: React.FC = () => {
             style={{
               flex: 1,
               minHeight: '260px',
-              maxHeight: '360px',
+              maxHeight: '340px',
               overflowY: 'auto',
               display: 'flex',
               flexDirection: 'column',
@@ -184,112 +255,221 @@ export const ParentPortal: React.FC = () => {
               marginBottom: '1rem',
             }}
           >
-            {messages.map((m) => {
-              const isMe = m.senderId === user?.id;
-              return (
-                <div
-                  key={m.id}
-                  style={{
-                    alignSelf: isMe ? 'flex-end' : 'flex-start',
-                    maxWidth: '80%',
-                    padding: '0.75rem 1rem',
-                    borderRadius: 'var(--radius-sm)',
-                    backgroundColor: isMe ? 'var(--primary)' : '#ffffff',
-                    color: isMe ? '#ffffff' : 'var(--text-main)',
-                    border: isMe ? 'none' : '1px solid var(--border-subtle)',
-                  }}
-                >
+            {messages.length === 0 ? (
+              <div style={{ padding: '2rem 1rem', textAlign: 'center', color: 'var(--text-muted)', margin: 'auto' }}>
+                <MessageSquare size={28} style={{ opacity: 0.3, margin: '0 auto 0.5rem' }} />
+                <div>Start a confidential discussion with {selectedChild?.firstName}'s teacher below.</div>
+              </div>
+            ) : (
+              messages.map((m) => {
+                const isMe = m.senderId === user?.id;
+                return (
                   <div
+                    key={m.id}
                     style={{
-                      fontSize: '0.72rem',
-                      fontWeight: 700,
-                      marginBottom: '0.2rem',
-                      color: isMe ? '#bfdbfe' : 'var(--primary)',
+                      alignSelf: isMe ? 'flex-end' : 'flex-start',
+                      maxWidth: '82%',
+                      padding: '0.75rem 1rem',
+                      borderRadius: 'var(--radius-sm)',
+                      backgroundColor: isMe ? 'var(--primary)' : '#ffffff',
+                      color: isMe ? '#ffffff' : 'var(--text-main)',
+                      border: isMe ? 'none' : '1px solid var(--border-subtle)',
                     }}
                   >
-                    {m.sender?.firstName} {m.sender?.lastName} ({m.sender?.role})
+                    <div
+                      style={{
+                        fontSize: '0.72rem',
+                        fontWeight: 700,
+                        marginBottom: '0.2rem',
+                        color: isMe ? '#bfdbfe' : 'var(--primary)',
+                      }}
+                    >
+                      {m.sender?.firstName} {m.sender?.lastName} ({m.sender?.role || 'Educator'})
+                    </div>
+                    <div style={{ fontSize: '0.875rem', lineHeight: 1.5 }}>{m.content}</div>
+                    <div
+                      style={{
+                        fontSize: '0.68rem',
+                        marginTop: '0.3rem',
+                        textAlign: 'right',
+                        color: isMe ? '#cbd5e1' : 'var(--text-muted)',
+                      }}
+                    >
+                      {new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </div>
                   </div>
-                  <div style={{ fontSize: '0.875rem', lineHeight: 1.5 }}>{m.content}</div>
-                  <div
-                    style={{
-                      fontSize: '0.68rem',
-                      marginTop: '0.3rem',
-                      textAlign: 'right',
-                      color: isMe ? '#cbd5e1' : 'var(--text-muted)',
-                    }}
-                  >
-                    {new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </div>
 
           <form onSubmit={handleSendMessage} style={{ display: 'flex', gap: '0.5rem' }}>
             <input
               type="text"
               className="form-input"
-              placeholder="Inquire about Leo's coursework or schedule..."
+              placeholder={`Send private message regarding ${selectedChild?.firstName || 'your student'}...`}
               value={replyText}
               onChange={(e) => setReplyText(e.target.value)}
               required
             />
             <button type="submit" className="btn btn-primary" disabled={sending}>
-              <Send size={15} /> Send
+              <Send size={15} /> {sending ? 'Sending...' : 'Send'}
             </button>
           </form>
         </div>
 
-        {/* Academic Evaluations & Teacher Remarks */}
+        {/* Evaluated Coursework & Teacher Remarks */}
         <div className="card">
           <div className="card-header">
-            <h3 className="card-title">Recent Evaluated Coursework</h3>
+            <div>
+              <h3 className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Award size={18} color="var(--primary)" />
+                Recent Evaluated Coursework
+              </h3>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                Teacher grading marks & personalized commentary
+              </div>
+            </div>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            <div
-              style={{
-                padding: '1rem',
-                borderRadius: 'var(--radius-sm)',
-                border: '1px solid var(--border-subtle)',
-                backgroundColor: '#ffffff',
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
-                <span className="badge badge-success">Score: 94 / 100 pts (Grade A+)</span>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Graded Yesterday</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+            {recentGrades.length === 0 ? (
+              <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                No completed evaluations recorded yet for this term.
               </div>
-              <h4 style={{ fontSize: '0.95rem', fontWeight: 700 }}>
-                Newton's Second Law & Friction Dynamics Analysis
-              </h4>
-              <p style={{ fontSize: '0.825rem', color: 'var(--text-muted)', marginTop: '0.4rem', fontStyle: 'italic' }}>
-                "Outstanding experimental analysis, Leo. Excellent breakdown of dynamic vs static friction!"
-                <br />
-                <span style={{ fontWeight: 600, color: 'var(--primary)' }}>— Dr. Sarah Jenkins</span>
-              </p>
-            </div>
+            ) : (
+              recentGrades.map((g: any) => {
+                const max = g.assignment?.maxPoints || 100;
+                const pct = Math.round((g.pointsAwarded / max) * 100);
+                return (
+                  <div
+                    key={g.id}
+                    style={{
+                      padding: '1rem',
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid var(--border-subtle)',
+                      backgroundColor: '#ffffff',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+                      <span className="badge badge-success">
+                        Score: {g.pointsAwarded} / {max} pts ({pct}%)
+                      </span>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                        {new Date(g.gradedAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <h4 style={{ fontSize: '0.925rem', fontWeight: 700 }}>
+                      {g.assignment?.title}
+                    </h4>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.4rem' }}>
+                      Subject: {g.assignment?.subject?.name || 'Core Curriculum'}
+                    </div>
 
-            <div
-              style={{
-                padding: '1rem',
-                borderRadius: 'var(--radius-sm)',
-                border: '1px solid var(--border-subtle)',
-                backgroundColor: '#ffffff',
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
-                <span className="badge badge-success">Score: 48 / 50 pts (Grade A+)</span>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Graded 3 days ago</span>
-              </div>
-              <h4 style={{ fontSize: '0.95rem', fontWeight: 700 }}>
-                Thermodynamics & Heat Transfer Problem Set
-              </h4>
-              <p style={{ fontSize: '0.825rem', color: 'var(--text-muted)', marginTop: '0.4rem', fontStyle: 'italic' }}>
-                "Well reasoned solutions with clear step-by-step units."
-                <br />
-                <span style={{ fontWeight: 600, color: 'var(--primary)' }}>— Dr. Sarah Jenkins</span>
-              </p>
-            </div>
+                    {g.feedback && (
+                      <p
+                        style={{
+                          fontSize: '0.825rem',
+                          color: '#334155',
+                          backgroundColor: '#f8fafc',
+                          padding: '0.65rem 0.85rem',
+                          borderRadius: 'var(--radius-xs)',
+                          borderLeft: '3px solid var(--primary)',
+                          fontStyle: 'italic',
+                          margin: 0,
+                          lineHeight: 1.5,
+                        }}
+                      >
+                        "{g.feedback}"
+                      </p>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Lower Row: Upcoming Tasks & School Announcements */}
+      <div className="grid-2">
+        {/* Child's Upcoming Assignments */}
+        <div className="card">
+          <div className="card-header">
+            <h3 className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <BookOpen size={18} color="var(--primary)" />
+              {selectedChild?.firstName}'s Active Homework & Deadlines
+            </h3>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+            {upcomingAssignments.length === 0 ? (
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>No pending homework at this time.</p>
+            ) : (
+              upcomingAssignments.map((a: any) => (
+                <div
+                  key={a.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '0.75rem 0.85rem',
+                    backgroundColor: '#ffffff',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--border-subtle)',
+                  }}
+                >
+                  <div>
+                    <div style={{ fontSize: '0.875rem', fontWeight: 700 }}>{a.title}</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                      Due: <strong>{new Date(a.dueAt).toLocaleDateString()}</strong> • {a.subject?.name}
+                    </div>
+                  </div>
+                  <span className="badge" style={{ backgroundColor: '#eff6ff', color: 'var(--primary)', fontSize: '0.72rem' }}>
+                    {a.maxPoints} pts
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* School Circulars & Bulletins */}
+        <div className="card">
+          <div className="card-header">
+            <h3 className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Bell size={18} color="var(--primary)" />
+              Official Institutional Circulars & Notices
+            </h3>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+            {announcements.length === 0 ? (
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>No recent announcements.</p>
+            ) : (
+              announcements.map((n: any) => (
+                <div
+                  key={n.id}
+                  style={{
+                    padding: '0.75rem 0.85rem',
+                    backgroundColor: '#ffffff',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--border-subtle)',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.2rem' }}>
+                    <span className="badge badge-info">{n.category || 'School Notice'}</span>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                      {new Date(n.createdAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <h4 style={{ fontSize: '0.875rem', fontWeight: 700, margin: '0.2rem 0' }}>{n.title}</h4>
+                  <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: 0, lineHeight: 1.4 }}>
+                    {n.content}
+                  </p>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>

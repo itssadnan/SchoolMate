@@ -19,25 +19,40 @@ import {
   School,
   FileSpreadsheet,
   Zap,
+  Check,
+  Calendar,
+  FileText,
+  UserCheck,
 } from 'lucide-react';
-import { useAuth, AuthModalMode } from '../context/AuthContext';
+import { useAuth } from '../context/AuthContext';
 
 export const LandingPage: React.FC = () => {
   const { openAuthModal, login } = useAuth();
   const [activePortalTab, setActivePortalTab] = useState<'teacher' | 'student' | 'parent' | 'admin'>('teacher');
-  const [activeAiTab, setActiveAiTab] = useState<number>(0);
+  const [loggingInRole, setLoggingInRole] = useState<string | null>(null);
+
+  const handleQuickLogin = async (email: string, roleName: string) => {
+    setLoggingInRole(roleName);
+    try {
+      await login(email, 'password123');
+    } catch (err: any) {
+      alert(`Login failed: ${err.message}`);
+    } finally {
+      setLoggingInRole(null);
+    }
+  };
 
   const portalDetails = {
     teacher: {
-      title: 'Faculty Command Center & Workspaces',
-      badge: 'For Educators & Heads of Department',
+      title: 'Faculty Command Center & Instructional Studio',
+      badge: 'For Educators & Academic Leaders',
       description:
-        'A high-velocity instructional workspace equipped with live period indicators, 1-click roll call, continuous assessment matrix gradebooks, and Canvas LMS-inspired speed grading.',
+        'A high-velocity instructional workspace equipped with live class period detection, 1-click attendance roll call, continuous assessment matrix gradebooks, and Canvas LMS-inspired speed grading.',
       features: [
-        'Live Active Instruction Period Indicator with 1-click roll call',
+        'Live Active Instruction Period Indicator with 1-click class roll call',
         'Interactive Matrix Gradebook with instant percentage & letter bands',
         'Speed Grading Studio with side-by-side submission inspection & AI feedback',
-        'Campus announcements & positive conduct merit logging',
+        'Evidence-based Pedagogical AI Studio (lesson plans, rubrics, interventions)',
       ],
       demoRole: 'Teacher',
       demoEmail: 'sarah.jenkins@oakridge.edu',
@@ -45,15 +60,15 @@ export const LandingPage: React.FC = () => {
       tagline: 'Streamline 10+ weekly administrative hours into single-click workflows',
     },
     student: {
-      title: 'Student Academic Portal & Coursework Hub',
+      title: 'Student Academic Workspace & Coursework Cockpit',
       badge: 'For Enrolled Students & Scholars',
       description:
-        'A modern student cockpit enabling learners to track attendance rates, review evaluated assignments, and submit coursework online with immediate receipt verification.',
+        'An autonomous student cockpit enabling learners to track attendance rates, review evaluated coursework with teacher commentary, and turn in assignments with immediate digital receipts.',
       features: [
-        'Interactive "Turn In Assignment" modal with file & text submission',
-        'Continuous academic scorecard with teacher remarks & rubric marks',
-        'Live 94% GPA average & 100% attendance tracking',
-        'Integrated PIN-Protected Parent Zone for shared family devices',
+        'Interactive "Turn In Coursework" modal with rich text & link submission',
+        'Continuous academic scorecard with teacher commentary & rubric scores',
+        'Live attendance percentage & daily presence records',
+        'Weekly class timetable with subject educators and room assignments',
       ],
       demoRole: 'Student',
       demoEmail: 'leo.vance@student.oakridge.edu',
@@ -61,15 +76,15 @@ export const LandingPage: React.FC = () => {
       tagline: 'Fostering academic ownership and transparent feedback loops',
     },
     parent: {
-      title: 'Parent Portal & Confidential Teacher Communications',
-      badge: 'For Guardians & Families',
+      title: 'Guardian Portal & Confidential Teacher Communications',
+      badge: 'For Families & Guardians',
       description:
-        'Bridging the classroom and home with morning arrival verification, continuous attendance radars, and a direct 1-on-1 private messaging channel with subject teachers.',
+        'Bridging the classroom and home with verified morning arrival radars, continuous attendance tracking, and a direct confidential 1-on-1 private messaging channel with subject teachers.',
       features: [
         'Real-time morning arrival confirmation & daily attendance radar',
-        'Confidential 1-on-1 discussion room with Dr. Sarah Jenkins',
-        'Merits & positive behavior feed for character recognition',
-        '🔒 PIN Parent Lock (1234) ensuring sensitive messages stay private',
+        'Confidential 1-on-1 direct messaging channel with subject educators',
+        'Evaluated coursework breakdown with marks, percentages, and teacher notes',
+        'Child active assignments & upcoming deadline completion tracker',
       ],
       demoRole: 'Parent',
       demoEmail: 'david.vance@parent.oakridge.edu',
@@ -77,15 +92,15 @@ export const LandingPage: React.FC = () => {
       tagline: 'Active partnership in your child’s educational trajectory',
     },
     admin: {
-      title: 'Multi-Tenant SaaS & Institutional Sovereignty',
+      title: 'Multi-Tenant SaaS Governance & Institutional Sovereignty',
       badge: 'For School Leaders & Trustees',
       description:
         'Built for multi-academy trusts, independent schools, and global education networks. Run any number of institutions with complete request-level data sovereignty.',
       features: [
         'Request-level tenant isolation via x-tenant-code HTTP headers',
-        'Instant School Switcher (Oakridge Academy ⇄ St. Jude High School)',
+        'Instant Multi-School Switcher (Oakridge Academy ⇄ St. Jude High School)',
         'Zero-setup internal SQL database with PostgreSQL compatibility',
-        'Granular RBAC: School Admin, Teacher, Student, and Parent roles',
+        'Granular RBAC: School Admin, Faculty Educator, Student, and Guardian roles',
       ],
       demoRole: 'School 2 Tenant',
       demoEmail: 'robert.vance@stjude.edu',
@@ -119,7 +134,7 @@ export const LandingPage: React.FC = () => {
     {
       title: 'Early Intervention Academic & Attendance Radar',
       subtitle: 'Proactive pastoral care and risk diagnosis',
-      desc: 'Calculates Risk Indices (Tier 3 Critical to Tier 1 Monitoring), analyzes root causes (absenteeism vs exam anxiety), and builds a 3-phase pastoral recovery roadmap.',
+      desc: 'Calculates Risk Indices (Tier 3 Critical to Tier 1 Monitoring), analyzes root causes (absenteeism vs conceptual deficit), and builds a 3-phase pastoral recovery roadmap.',
       badge: 'Pastoral Care',
       highlight: 'Intervene before term grade drops occur',
     },
@@ -135,17 +150,17 @@ export const LandingPage: React.FC = () => {
   const currentPortal = portalDetails[activePortalTab];
 
   return (
-    <div style={{ backgroundColor: '#0f172a', color: '#f8fafc', minHeight: '100vh', fontFamily: 'var(--font-body)' }}>
+    <div style={{ backgroundColor: '#0b0f19', color: '#f8fafc', minHeight: '100vh', fontFamily: 'var(--font-body)' }}>
       {/* 1. Global Navigation Bar */}
       <header
         style={{
           position: 'sticky',
           top: 0,
           zIndex: 50,
-          backgroundColor: 'rgba(15, 23, 42, 0.85)',
+          backgroundColor: 'rgba(11, 15, 25, 0.88)',
           backdropFilter: 'blur(16px)',
           borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-          padding: '0.85rem 2rem',
+          padding: '0.9rem 2rem',
         }}
       >
         <div style={{ maxWidth: '1280px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -161,7 +176,7 @@ export const LandingPage: React.FC = () => {
                 alignItems: 'center',
                 justifyContent: 'center',
                 color: '#ffffff',
-                boxShadow: '0 4px 14px rgba(37, 99, 235, 0.35)',
+                boxShadow: '0 4px 16px rgba(37, 99, 235, 0.4)',
               }}
             >
               <GraduationCap size={24} />
@@ -170,24 +185,24 @@ export const LandingPage: React.FC = () => {
               <div style={{ fontSize: '1.25rem', fontWeight: 800, letterSpacing: '-0.02em', color: '#ffffff' }}>
                 SchoolMate
               </div>
-              <div style={{ fontSize: '0.72rem', color: '#94a3b8', letterSpacing: '0.04em', textTransform: 'uppercase', fontWeight: 600 }}>
-                Institutional SIS & LMS
+              <div style={{ fontSize: '0.72rem', color: '#94a3b8', letterSpacing: '0.05em', textTransform: 'uppercase', fontWeight: 700 }}>
+                Unified Multi-Tenant SIS & LMS
               </div>
             </div>
           </div>
 
           {/* Nav Links */}
           <nav style={{ display: 'flex', alignItems: 'center', gap: '1.75rem' }}>
-            <a href="#portals" style={{ color: '#cbd5e1', fontSize: '0.9rem', fontWeight: 500, textDecoration: 'none', transition: 'color 0.2s' }}>
+            <a href="#portals" style={{ color: '#cbd5e1', fontSize: '0.9rem', fontWeight: 600, textDecoration: 'none', transition: 'color 0.2s' }}>
               Portals
             </a>
-            <a href="#features" style={{ color: '#cbd5e1', fontSize: '0.9rem', fontWeight: 500, textDecoration: 'none' }}>
-              Features
+            <a href="#features" style={{ color: '#cbd5e1', fontSize: '0.9rem', fontWeight: 600, textDecoration: 'none' }}>
+              Pillars
             </a>
-            <a href="#ai-studio" style={{ color: '#cbd5e1', fontSize: '0.9rem', fontWeight: 500, textDecoration: 'none' }}>
+            <a href="#ai-studio" style={{ color: '#cbd5e1', fontSize: '0.9rem', fontWeight: 600, textDecoration: 'none' }}>
               AI Studio
             </a>
-            <a href="#demos" style={{ color: '#cbd5e1', fontSize: '0.9rem', fontWeight: 500, textDecoration: 'none' }}>
+            <a href="#demos" style={{ color: '#cbd5e1', fontSize: '0.9rem', fontWeight: 600, textDecoration: 'none' }}>
               1-Click Demos
             </a>
           </nav>
@@ -197,7 +212,7 @@ export const LandingPage: React.FC = () => {
             <button
               onClick={() => openAuthModal('login')}
               style={{
-                background: 'transparent',
+                background: 'rgba(255, 255, 255, 0.05)',
                 border: '1px solid rgba(255, 255, 255, 0.16)',
                 color: '#ffffff',
                 padding: '0.55rem 1.15rem',
@@ -221,7 +236,7 @@ export const LandingPage: React.FC = () => {
                 fontWeight: 600,
                 fontSize: '0.875rem',
                 cursor: 'pointer',
-                boxShadow: '0 4px 14px rgba(37, 99, 235, 0.4)',
+                boxShadow: '0 4px 14px rgba(37, 99, 235, 0.45)',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.4rem',
@@ -235,44 +250,45 @@ export const LandingPage: React.FC = () => {
       </header>
 
       {/* 2. Hero Section */}
-      <section style={{ position: 'relative', overflow: 'hidden', padding: '5rem 2rem 4rem' }}>
+      <section style={{ position: 'relative', overflow: 'hidden', padding: '5.5rem 2rem 4.5rem' }}>
         <div
           style={{
             position: 'absolute',
-            top: '-20%',
+            top: '-25%',
             left: '50%',
             transform: 'translateX(-50%)',
-            width: '800px',
-            height: '400px',
-            background: 'radial-gradient(circle, rgba(37, 99, 235, 0.18) 0%, rgba(15, 23, 42, 0) 70%)',
+            width: '900px',
+            height: '450px',
+            background: 'radial-gradient(circle, rgba(37, 99, 235, 0.2) 0%, rgba(11, 15, 25, 0) 70%)',
             pointerEvents: 'none',
           }}
         />
 
-        <div style={{ maxWidth: '1080px', margin: '0 auto', textAlign: 'center', position: 'relative', zIndex: 1 }}>
-          {/* Tag Pill */}
+        <div style={{ maxWidth: '1120px', margin: '0 auto', textAlign: 'center', position: 'relative', zIndex: 1 }}>
+          {/* Institutional Tag Pill */}
           <div
             style={{
               display: 'inline-flex',
               alignItems: 'center',
               gap: '0.5rem',
-              backgroundColor: 'rgba(37, 99, 235, 0.12)',
-              border: '1px solid rgba(59, 130, 246, 0.3)',
+              backgroundColor: 'rgba(37, 99, 235, 0.14)',
+              border: '1px solid rgba(59, 130, 246, 0.35)',
               borderRadius: '999px',
-              padding: '0.35rem 0.95rem',
-              fontSize: '0.8rem',
-              fontWeight: 600,
+              padding: '0.4rem 1.1rem',
+              fontSize: '0.825rem',
+              fontWeight: 700,
               color: '#60a5fa',
               marginBottom: '1.75rem',
+              boxShadow: '0 0 20px rgba(59, 130, 246, 0.15)',
             }}
           >
             <Sparkles size={14} color="#60a5fa" />
-            Next-Generation Multi-Tenant School Management Platform
+            Next-Generation Multi-Tenant School Operating System
           </div>
 
           <h1
             style={{
-              fontSize: 'clamp(2.5rem, 5vw, 4rem)',
+              fontSize: 'clamp(2.5rem, 5.2vw, 4.2rem)',
               fontWeight: 850,
               lineHeight: 1.12,
               letterSpacing: '-0.03em',
@@ -280,15 +296,15 @@ export const LandingPage: React.FC = () => {
               color: '#ffffff',
             }}
           >
-            The Institutional Operating System for{' '}
+            The Operating System for{' '}
             <span
               style={{
-                background: 'linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%)',
+                background: 'linear-gradient(135deg, #60a5fa 0%, #c084fc 100%)',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
               }}
             >
-              Modern Education
+              Modern Schools & Academies
             </span>
           </h1>
 
@@ -296,18 +312,18 @@ export const LandingPage: React.FC = () => {
             style={{
               fontSize: 'clamp(1.05rem, 2vw, 1.25rem)',
               color: '#94a3b8',
-              maxWidth: '820px',
+              maxWidth: '850px',
               margin: '0 auto 2.5rem',
-              lineHeight: 1.6,
+              lineHeight: 1.65,
             }}
           >
-            Unifying <strong>Faculty Workspaces</strong>, continuous <strong>Matrix Gradebooks</strong>, an evidence-based{' '}
-            <strong>Teacher AI Studio</strong>, and <strong>PIN-Protected Parent-Teacher Zones</strong> under a single,
-            data-isolated institutional umbrella.
+            Unifying <strong>Faculty Workspaces</strong>, continuous <strong>Matrix Gradebooks</strong>, an autonomous{' '}
+            <strong>Student Coursework Cockpit</strong>, verified <strong>Guardian Arrival Radars</strong>, and{' '}
+            <strong>5 Pedagogical AI Synthesizers</strong> under 100% tenant data isolation.
           </p>
 
           {/* Action CTAs */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem', flexWrap: 'wrap', marginBottom: '2.5rem' }}>
             <button
               onClick={() => openAuthModal('register-school')}
               style={{
@@ -315,7 +331,7 @@ export const LandingPage: React.FC = () => {
                 color: '#ffffff',
                 border: 'none',
                 borderRadius: '10px',
-                padding: '0.85rem 1.8rem',
+                padding: '0.9rem 1.9rem',
                 fontSize: '1rem',
                 fontWeight: 700,
                 cursor: 'pointer',
@@ -326,17 +342,17 @@ export const LandingPage: React.FC = () => {
               }}
             >
               <School size={18} />
-              Register Your School
+              Register Your School Institution
             </button>
 
             <button
               onClick={() => openAuthModal('register-teacher')}
               style={{
-                backgroundColor: 'rgba(255, 255, 255, 0.07)',
-                border: '1px solid rgba(255, 255, 255, 0.16)',
+                backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                border: '1px solid rgba(255, 255, 255, 0.18)',
                 color: '#f8fafc',
                 borderRadius: '10px',
-                padding: '0.85rem 1.6rem',
+                padding: '0.9rem 1.7rem',
                 fontSize: '1rem',
                 fontWeight: 600,
                 cursor: 'pointer',
@@ -346,24 +362,98 @@ export const LandingPage: React.FC = () => {
               }}
             >
               <Users size={18} />
-              Sign Up as Teacher
+              Sign Up as Faculty Teacher
             </button>
+          </div>
 
-            <a
-              href="#demos"
-              style={{
-                color: '#94a3b8',
-                textDecoration: 'none',
-                fontSize: '0.95rem',
-                fontWeight: 600,
-                padding: '0.85rem 1.2rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.35rem',
-              }}
-            >
-              1-Click Test Personas <ChevronRight size={16} />
-            </a>
+          {/* 1-Click Instant Evaluation Launch Bar */}
+          <div
+            style={{
+              maxWidth: '920px',
+              margin: '0 auto',
+              backgroundColor: 'rgba(30, 41, 59, 0.7)',
+              border: '1px solid rgba(255, 255, 255, 0.12)',
+              borderRadius: '16px',
+              padding: '1.25rem 1.5rem',
+              backdropFilter: 'blur(12px)',
+              boxShadow: '0 12px 30px rgba(0, 0, 0, 0.35)',
+            }}
+          >
+            <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.85rem' }}>
+              ⚡ 1-Click Live Test Drive (No Password Required)
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '0.75rem' }}>
+              <button
+                onClick={() => handleQuickLogin('sarah.jenkins@oakridge.edu', 'Teacher')}
+                disabled={!!loggingInRole}
+                style={{
+                  backgroundColor: '#1e293b',
+                  border: '1px solid rgba(59, 130, 246, 0.3)',
+                  borderRadius: '10px',
+                  padding: '0.75rem 1rem',
+                  color: '#ffffff',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  transition: 'all 0.15s ease',
+                  textAlign: 'left',
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: '0.825rem', fontWeight: 700, color: '#60a5fa' }}>👨‍🏫 Faculty Teacher</div>
+                  <div style={{ fontSize: '0.75rem', color: '#cbd5e1' }}>Dr. Sarah Jenkins</div>
+                </div>
+                <ArrowRight size={14} color="#60a5fa" />
+              </button>
+
+              <button
+                onClick={() => handleQuickLogin('leo.vance@student.oakridge.edu', 'Student')}
+                disabled={!!loggingInRole}
+                style={{
+                  backgroundColor: '#1e293b',
+                  border: '1px solid rgba(16, 185, 129, 0.3)',
+                  borderRadius: '10px',
+                  padding: '0.75rem 1rem',
+                  color: '#ffffff',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  textAlign: 'left',
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: '0.825rem', fontWeight: 700, color: '#34d399' }}>🎒 Enrolled Student</div>
+                  <div style={{ fontSize: '0.75rem', color: '#cbd5e1' }}>Leo Vance (Grade 9-A)</div>
+                </div>
+                <ArrowRight size={14} color="#34d399" />
+              </button>
+
+              <button
+                onClick={() => handleQuickLogin('david.vance@parent.oakridge.edu', 'Parent')}
+                disabled={!!loggingInRole}
+                style={{
+                  backgroundColor: '#1e293b',
+                  border: '1px solid rgba(245, 158, 11, 0.3)',
+                  borderRadius: '10px',
+                  padding: '0.75rem 1rem',
+                  color: '#ffffff',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  textAlign: 'left',
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: '0.825rem', fontWeight: 700, color: '#fbbf24' }}>👨‍👩‍👧 Verified Guardian</div>
+                  <div style={{ fontSize: '0.75rem', color: '#cbd5e1' }}>David Vance</div>
+                </div>
+                <ArrowRight size={14} color="#fbbf24" />
+              </button>
+            </div>
           </div>
 
           {/* Institutional Trust Badges Strip */}
@@ -379,40 +469,40 @@ export const LandingPage: React.FC = () => {
             <div style={{ backgroundColor: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '12px', padding: '1.25rem' }}>
               <div style={{ color: '#38bdf8', marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <ShieldCheck size={20} />
-                <span style={{ fontSize: '0.95rem', fontWeight: 700 }}>Data Sovereignty</span>
+                <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>100% Tenant Isolation</span>
               </div>
-              <div style={{ fontSize: '0.82rem', color: '#94a3b8' }}>
-                Complete multi-tenant isolation via request-level tenant token headers.
+              <div style={{ fontSize: '0.8rem', color: '#94a3b8', lineHeight: 1.5 }}>
+                Strict request-level isolation via <code>x-tenant-code</code> headers. Zero cross-school leakage.
               </div>
             </div>
 
             <div style={{ backgroundColor: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '12px', padding: '1.25rem' }}>
               <div style={{ color: '#a78bfa', marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <Sparkles size={20} />
-                <span style={{ fontSize: '0.95rem', fontWeight: 700 }}>Zero-Cost AI Engine</span>
+                <Cpu size={20} />
+                <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>Zero-Cost AI Studio</span>
               </div>
-              <div style={{ fontSize: '0.82rem', color: '#94a3b8' }}>
-                Built-in pedagogical synthesizer works 100% offline with zero external API fees.
+              <div style={{ fontSize: '0.8rem', color: '#94a3b8', lineHeight: 1.5 }}>
+                Offline pedagogical synthesis with optional NVIDIA NIM Llama 3.3-70B model acceleration.
               </div>
             </div>
 
             <div style={{ backgroundColor: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '12px', padding: '1.25rem' }}>
               <div style={{ color: '#34d399', marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <Lock size={20} />
-                <span style={{ fontSize: '0.95rem', fontWeight: 700 }}>PIN Parent Zone</span>
+                <Clock size={20} />
+                <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>10+ Hours Saved/Week</span>
               </div>
-              <div style={{ fontSize: '0.82rem', color: '#94a3b8' }}>
-                Confidential teacher chat protected by 4-digit PIN for shared family tablets.
+              <div style={{ fontSize: '0.8rem', color: '#94a3b8', lineHeight: 1.5 }}>
+                Automate roll call, speed rubric grading, term remarks, and inquiry lesson planning.
               </div>
             </div>
 
             <div style={{ backgroundColor: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '12px', padding: '1.25rem' }}>
-              <div style={{ color: '#f59e0b', marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <FileSpreadsheet size={20} />
-                <span style={{ fontSize: '0.95rem', fontWeight: 700 }}>Matrix Gradebook</span>
+              <div style={{ color: '#fbbf24', marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Lock size={20} />
+                <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>FERPA & GDPR Aligned</span>
               </div>
-              <div style={{ fontSize: '0.82rem', color: '#94a3b8' }}>
-                Real-time continuous assessment spreadsheet with instant CSV export.
+              <div style={{ fontSize: '0.8rem', color: '#94a3b8', lineHeight: 1.5 }}>
+                Role-based access enforcement for teachers, learners, parents, and trust leaders.
               </div>
             </div>
           </div>
@@ -420,17 +510,17 @@ export const LandingPage: React.FC = () => {
       </section>
 
       {/* 3. Portals Showcase (Interactive Multi-Tab / Multi-Page) */}
-      <section id="portals" style={{ padding: '5rem 2rem', backgroundColor: '#090d16', borderTop: '1px solid rgba(255, 255, 255, 0.06)' }}>
+      <section id="portals" style={{ padding: '5rem 2rem', backgroundColor: '#070b12', borderTop: '1px solid rgba(255, 255, 255, 0.06)' }}>
         <div style={{ maxWidth: '1240px', margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
             <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-              Specialized Cockpits
+              Dedicated Cockpits
             </span>
             <h2 style={{ fontSize: '2.4rem', fontWeight: 800, marginTop: '0.4rem', color: '#ffffff' }}>
-              Dedicated Experiences for Every Stakeholder
+              Tailored Workspaces for Every Stakeholder
             </h2>
             <p style={{ color: '#94a3b8', maxWidth: '650px', margin: '0.5rem auto 0', fontSize: '1rem' }}>
-              Select a portal to explore role-specific workflows and operational features.
+              Switch perspectives to inspect role-specific functionality and institutional interfaces.
             </p>
           </div>
 
@@ -439,7 +529,7 @@ export const LandingPage: React.FC = () => {
             style={{
               display: 'flex',
               justifyContent: 'center',
-              gap: '0.5rem',
+              gap: '0.6rem',
               marginBottom: '2.5rem',
               flexWrap: 'wrap',
             }}
@@ -461,12 +551,13 @@ export const LandingPage: React.FC = () => {
                   alignItems: 'center',
                   gap: '0.5rem',
                   transition: 'all 0.2s',
+                  boxShadow: activePortalTab === tab ? '0 4px 12px rgba(59, 130, 246, 0.2)' : 'none',
                 }}
               >
-                {tab === 'teacher' && <BookOpen size={16} />}
-                {tab === 'student' && <GraduationCap size={16} />}
-                {tab === 'parent' && <Users size={16} />}
-                {tab === 'admin' && <School size={16} />}
+                {tab === 'teacher' && <BookOpen size={16} color="#60a5fa" />}
+                {tab === 'student' && <GraduationCap size={16} color="#34d399" />}
+                {tab === 'parent' && <Users size={16} color="#fbbf24" />}
+                {tab === 'admin' && <School size={16} color="#c084fc" />}
                 {tab.charAt(0).toUpperCase() + tab.slice(1)} Portal
               </button>
             ))}
@@ -479,7 +570,7 @@ export const LandingPage: React.FC = () => {
               border: '1px solid rgba(255, 255, 255, 0.1)',
               borderRadius: '16px',
               padding: '2.5rem',
-              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.4)',
+              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.45)',
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
               gap: '2.5rem',
@@ -523,19 +614,20 @@ export const LandingPage: React.FC = () => {
               {/* 1-Click Launch Action for this portal */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                 <button
-                  onClick={() => login(currentPortal.demoEmail, 'password123')}
+                  onClick={() => handleQuickLogin(currentPortal.demoEmail, currentPortal.demoRole)}
                   style={{
                     backgroundColor: '#2563eb',
                     color: '#ffffff',
                     border: 'none',
                     borderRadius: '8px',
-                    padding: '0.75rem 1.4rem',
-                    fontSize: '0.9rem',
-                    fontWeight: 600,
+                    padding: '0.8rem 1.5rem',
+                    fontSize: '0.92rem',
+                    fontWeight: 700,
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '0.5rem',
+                    boxShadow: '0 4px 14px rgba(37, 99, 235, 0.4)',
                   }}
                 >
                   Launch {currentPortal.demoRole} Workspace ({currentPortal.demoName})
@@ -544,60 +636,128 @@ export const LandingPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Right Visual Representation */}
+            {/* Right Visual Representation: Interactive Live UI Simulation */}
             <div
               style={{
                 backgroundColor: '#1e293b',
                 border: '1px solid rgba(255, 255, 255, 0.08)',
-                borderRadius: '12px',
-                padding: '1.75rem',
-                position: 'relative',
+                borderRadius: '14px',
+                padding: '1.5rem',
+                boxShadow: '0 12px 28px rgba(0,0,0,0.5)',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', paddingBottom: '1rem', marginBottom: '1.25rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', paddingBottom: '0.85rem', marginBottom: '1.25rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <div style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: '#ef4444' }} />
                   <div style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: '#f59e0b' }} />
                   <div style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: '#10b981' }} />
-                  <span style={{ fontSize: '0.78rem', color: '#94a3b8', marginLeft: '0.5rem' }}>
-                    SchoolMate System // {currentPortal.demoRole} Environment
+                  <span style={{ fontSize: '0.78rem', color: '#94a3b8', marginLeft: '0.5rem', fontWeight: 600 }}>
+                    SchoolMate Cockpit // {currentPortal.demoRole} View
                   </span>
                 </div>
                 <span className="badge" style={{ backgroundColor: '#0f172a', color: '#38bdf8', fontSize: '0.72rem', border: '1px solid rgba(56, 189, 248, 0.2)' }}>
-                  Active Tenant: OAKRIDGE
+                  Tenant: OAKRIDGE
                 </span>
               </div>
 
-              <div style={{ backgroundColor: '#0f172a', borderRadius: '8px', padding: '1.25rem', marginBottom: '1rem' }}>
-                <div style={{ fontSize: '0.8rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600 }}>
-                  Institutional Mission
-                </div>
-                <div style={{ fontSize: '1.05rem', fontWeight: 700, color: '#f8fafc', marginTop: '0.3rem' }}>
-                  {currentPortal.tagline}
-                </div>
-              </div>
+              {/* Dynamic Mockup Card based on active tab */}
+              {activePortalTab === 'teacher' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  <div style={{ backgroundColor: '#0f172a', padding: '1rem', borderRadius: '8px', borderLeft: '3px solid #3b82f6' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
+                      <span style={{ fontSize: '0.75rem', color: '#60a5fa', fontWeight: 700 }}>🟢 INSTRUCTION ACTIVE (08:30 - 09:15)</span>
+                      <span className="badge badge-success" style={{ fontSize: '0.7rem' }}>96% Attendance</span>
+                    </div>
+                    <div style={{ fontSize: '1rem', fontWeight: 700, color: '#ffffff' }}>Grade 9-A • Physics & Mechanics</div>
+                    <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Room 302 • 24 Students Present • 1 Late</div>
+                  </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem' }}>
-                <div style={{ backgroundColor: '#0f172a', borderRadius: '8px', padding: '1rem' }}>
-                  <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Primary Persona</div>
-                  <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#38bdf8', marginTop: '0.2rem' }}>
-                    {currentPortal.demoName}
+                  <div style={{ backgroundColor: '#0f172a', padding: '1rem', borderRadius: '8px' }}>
+                    <div style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 600, marginBottom: '0.4rem' }}>SPEED GRADING QUEUE</div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#ffffff' }}>Leo Vance — Newtonian Dynamics</div>
+                        <div style={{ fontSize: '0.72rem', color: '#34d399' }}>AI Suggested: 95/100 pts (Grade A+)</div>
+                      </div>
+                      <span className="badge badge-info" style={{ fontSize: '0.72rem' }}>Graded</span>
+                    </div>
                   </div>
                 </div>
-                <div style={{ backgroundColor: '#0f172a', borderRadius: '8px', padding: '1rem' }}>
-                  <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Security Protocol</div>
-                  <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#10b981', marginTop: '0.2rem' }}>
-                    JWT + Tenant Claim
+              )}
+
+              {activePortalTab === 'student' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  <div style={{ backgroundColor: '#0f172a', padding: '1rem', borderRadius: '8px', borderLeft: '3px solid #10b981' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
+                      <span style={{ fontSize: '0.75rem', color: '#34d399', fontWeight: 700 }}>STUDENT COCKPIT</span>
+                      <span className="badge badge-success" style={{ fontSize: '0.7rem' }}>100% Attendance</span>
+                    </div>
+                    <div style={{ fontSize: '1rem', fontWeight: 700, color: '#ffffff' }}>Leo Vance • Grade 9-A (Roll #01)</div>
+                    <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Academic Average: 94% (Grade A+) • +5 Merits</div>
+                  </div>
+
+                  <div style={{ backgroundColor: '#0f172a', padding: '1rem', borderRadius: '8px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#ffffff' }}>Newton's Second Law Lab Write-Up</div>
+                        <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>Due Tomorrow • Max 100 pts</div>
+                      </div>
+                      <span className="badge badge-success" style={{ fontSize: '0.72rem' }}>Turned In ✓</span>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
+
+              {activePortalTab === 'parent' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  <div style={{ backgroundColor: '#0f172a', padding: '1rem', borderRadius: '8px', borderLeft: '3px solid #f59e0b' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
+                      <span style={{ fontSize: '0.75rem', color: '#fbbf24', fontWeight: 700 }}>VERIFIED GUARDIAN RADAR</span>
+                      <span className="badge badge-success" style={{ fontSize: '0.7rem' }}>Arrived 08:25 AM</span>
+                    </div>
+                    <div style={{ fontSize: '1rem', fontWeight: 700, color: '#ffffff' }}>David Vance supervising Leo Vance</div>
+                    <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>100% Morning Presence • Term 1 Physics A+</div>
+                  </div>
+
+                  <div style={{ backgroundColor: '#0f172a', padding: '1rem', borderRadius: '8px' }}>
+                    <div style={{ fontSize: '0.72rem', color: '#60a5fa', fontWeight: 700 }}>CONFIDENTIAL TEACHER THREAD</div>
+                    <div style={{ fontSize: '0.85rem', color: '#f8fafc', marginTop: '0.2rem' }}>
+                      "Leo demonstrated remarkable laboratory precision during today's mechanics experiment."
+                    </div>
+                    <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '0.3rem' }}>— Dr. Sarah Jenkins (09:45 AM)</div>
+                  </div>
+                </div>
+              )}
+
+              {activePortalTab === 'admin' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  <div style={{ backgroundColor: '#0f172a', padding: '1rem', borderRadius: '8px', borderLeft: '3px solid #a855f7' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
+                      <span style={{ fontSize: '0.75rem', color: '#c084fc', fontWeight: 700 }}>INSTITUTIONAL SOVEREIGNTY</span>
+                      <span className="badge badge-info" style={{ fontSize: '0.7rem' }}>Multi-Tenant Active</span>
+                    </div>
+                    <div style={{ fontSize: '1rem', fontWeight: 700, color: '#ffffff' }}>Oakridge Global Academy ⇄ St. Jude High</div>
+                    <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Request Isolation: Header x-tenant-code enforced</div>
+                  </div>
+
+                  <div style={{ backgroundColor: '#0f172a', padding: '1rem', borderRadius: '8px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#ffffff' }}>Zero Cross-School Data Leakage</div>
+                        <div style={{ fontSize: '0.72rem', color: '#34d399' }}>FERPA & GDPR Schema Isolated</div>
+                      </div>
+                      <span className="badge badge-success" style={{ fontSize: '0.72rem' }}>Verified Safe</span>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
       </section>
 
       {/* 4. Teacher AI Studio Showcase */}
-      <section id="ai-studio" style={{ padding: '5rem 2rem', position: 'relative' }}>
+      <section id="ai-studio" style={{ padding: '5.5rem 2rem', position: 'relative', backgroundColor: '#0b0f19' }}>
         <div style={{ maxWidth: '1240px', margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: '3.5rem' }}>
             <span
@@ -618,7 +778,7 @@ export const LandingPage: React.FC = () => {
               Built-in Pedagogical Intelligence
             </h2>
             <p style={{ color: '#94a3b8', maxWidth: '680px', margin: '0.5rem auto 0', fontSize: '1rem' }}>
-              Engineered with a high-fidelity local pedagogical synthesizer that works 100% offline at zero cost, with optional NVIDIA Build / OpenAI model integration.
+              Engineered with a high-fidelity local pedagogical synthesizer that works 100% offline at zero cost, with optional NVIDIA Build / OpenAI model acceleration.
             </p>
           </div>
 
@@ -634,7 +794,7 @@ export const LandingPage: React.FC = () => {
                   display: 'flex',
                   flexDirection: 'column',
                   justifyContent: 'space-between',
-                  transition: 'transform 0.2s, border-color 0.2s',
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.25)',
                 }}
               >
                 <div>
@@ -642,7 +802,7 @@ export const LandingPage: React.FC = () => {
                     <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#a78bfa', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                       {item.badge}
                     </span>
-                    <span style={{ fontSize: '0.7rem', color: '#34d399', backgroundColor: 'rgba(52, 211, 153, 0.1)', padding: '0.2rem 0.55rem', borderRadius: '4px' }}>
+                    <span style={{ fontSize: '0.7rem', color: '#34d399', backgroundColor: 'rgba(52, 211, 153, 0.1)', padding: '0.2rem 0.55rem', borderRadius: '4px', fontWeight: 600 }}>
                       Zero-Cost Ready
                     </span>
                   </div>
@@ -651,7 +811,7 @@ export const LandingPage: React.FC = () => {
                     {item.title}
                   </h4>
 
-                  <div style={{ fontSize: '0.8rem', color: '#38bdf8', fontWeight: 500, marginBottom: '0.85rem' }}>
+                  <div style={{ fontSize: '0.8rem', color: '#38bdf8', fontWeight: 600, marginBottom: '0.85rem' }}>
                     {item.subtitle}
                   </div>
 
@@ -665,13 +825,13 @@ export const LandingPage: React.FC = () => {
                     {item.highlight}
                   </span>
                   <button
-                    onClick={() => login('sarah.jenkins@oakridge.edu', 'password123')}
+                    onClick={() => handleQuickLogin('sarah.jenkins@oakridge.edu', 'Teacher')}
                     style={{
                       background: 'none',
                       border: 'none',
                       color: '#60a5fa',
-                      fontSize: '0.8rem',
-                      fontWeight: 600,
+                      fontSize: '0.82rem',
+                      fontWeight: 700,
                       cursor: 'pointer',
                       display: 'flex',
                       alignItems: 'center',
@@ -688,26 +848,26 @@ export const LandingPage: React.FC = () => {
       </section>
 
       {/* 5. 1-Click Test Personas Evaluation Section */}
-      <section id="demos" style={{ padding: '5rem 2rem', backgroundColor: '#090d16', borderTop: '1px solid rgba(255, 255, 255, 0.06)' }}>
+      <section id="demos" style={{ padding: '5.5rem 2rem', backgroundColor: '#070b12', borderTop: '1px solid rgba(255, 255, 255, 0.06)' }}>
         <div style={{ maxWidth: '1100px', margin: '0 auto', textAlign: 'center' }}>
           <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#34d399', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-            Instant Evaluation
+            Instant Stakeholder Evaluation
           </span>
           <h2 style={{ fontSize: '2.4rem', fontWeight: 800, marginTop: '0.4rem', color: '#ffffff' }}>
-            Test SchoolMate in 1 Click
+            Experience SchoolMate in 1 Click
           </h2>
           <p style={{ color: '#94a3b8', maxWidth: '600px', margin: '0.5rem auto 2.5rem', fontSize: '1rem' }}>
-            Evaluate any of the 4 pre-seeded institutional personas immediately without manual credentials.
+            Instantly evaluate pre-seeded institutional personas with real course cohorts, attendance logs, and speed rubrics.
           </p>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem' }}>
-            {/* Persona 1 */}
+            {/* Persona 1: Teacher */}
             <div
               style={{
                 backgroundColor: '#0f172a',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                borderRadius: '12px',
-                padding: '1.5rem',
+                border: '1px solid rgba(59, 130, 246, 0.25)',
+                borderRadius: '14px',
+                padding: '1.6rem',
                 textAlign: 'left',
                 display: 'flex',
                 flexDirection: 'column',
@@ -715,27 +875,27 @@ export const LandingPage: React.FC = () => {
               }}
             >
               <div>
-                <div style={{ fontSize: '1.8rem', marginBottom: '0.5rem' }}>👨‍🏫</div>
-                <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#ffffff' }}>Dr. Sarah Jenkins</div>
-                <div style={{ fontSize: '0.8rem', color: '#60a5fa', fontWeight: 600 }}>Faculty / Teacher</div>
+                <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>👨‍🏫</div>
+                <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#ffffff' }}>Dr. Sarah Jenkins</div>
+                <div style={{ fontSize: '0.8rem', color: '#60a5fa', fontWeight: 700 }}>Faculty Educator</div>
                 <div style={{ fontSize: '0.78rem', color: '#94a3b8', margin: '0.6rem 0 1rem' }}>
                   Oakridge Academy • Physics Dept
                 </div>
-                <div style={{ fontSize: '0.8rem', color: '#cbd5e1', lineHeight: 1.4 }}>
-                  Test Roll Call, Matrix Gradebook, Speed Grading & AI Studio.
+                <div style={{ fontSize: '0.825rem', color: '#cbd5e1', lineHeight: 1.45 }}>
+                  Live period roll call, continuous matrix gradebook, speed grading & AI Studio.
                 </div>
               </div>
               <button
-                onClick={() => login('sarah.jenkins@oakridge.edu', 'password123')}
+                onClick={() => handleQuickLogin('sarah.jenkins@oakridge.edu', 'Teacher')}
                 style={{
                   marginTop: '1.25rem',
                   backgroundColor: '#2563eb',
                   color: '#ffffff',
                   border: 'none',
-                  borderRadius: '6px',
-                  padding: '0.65rem 1rem',
-                  fontWeight: 600,
-                  fontSize: '0.85rem',
+                  borderRadius: '8px',
+                  padding: '0.75rem 1rem',
+                  fontWeight: 700,
+                  fontSize: '0.875rem',
                   cursor: 'pointer',
                   width: '100%',
                 }}
@@ -744,13 +904,13 @@ export const LandingPage: React.FC = () => {
               </button>
             </div>
 
-            {/* Persona 2 */}
+            {/* Persona 2: Student */}
             <div
               style={{
                 backgroundColor: '#0f172a',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                borderRadius: '12px',
-                padding: '1.5rem',
+                border: '1px solid rgba(16, 185, 129, 0.25)',
+                borderRadius: '14px',
+                padding: '1.6rem',
                 textAlign: 'left',
                 display: 'flex',
                 flexDirection: 'column',
@@ -758,27 +918,27 @@ export const LandingPage: React.FC = () => {
               }}
             >
               <div>
-                <div style={{ fontSize: '1.8rem', marginBottom: '0.5rem' }}>🎒</div>
-                <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#ffffff' }}>Leo Vance</div>
-                <div style={{ fontSize: '0.8rem', color: '#34d399', fontWeight: 600 }}>Enrolled Student</div>
+                <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🎒</div>
+                <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#ffffff' }}>Leo Vance</div>
+                <div style={{ fontSize: '0.8rem', color: '#34d399', fontWeight: 700 }}>Enrolled Student</div>
                 <div style={{ fontSize: '0.78rem', color: '#94a3b8', margin: '0.6rem 0 1rem' }}>
                   Oakridge Academy • Grade 9-A
                 </div>
-                <div style={{ fontSize: '0.8rem', color: '#cbd5e1', lineHeight: 1.4 }}>
-                  Turn in assignments, view grades & test PIN Parent Lock (1234).
+                <div style={{ fontSize: '0.825rem', color: '#cbd5e1', lineHeight: 1.45 }}>
+                  Turn in coursework, view evaluated teacher marks, timetable & positive merits.
                 </div>
               </div>
               <button
-                onClick={() => login('leo.vance@student.oakridge.edu', 'password123')}
+                onClick={() => handleQuickLogin('leo.vance@student.oakridge.edu', 'Student')}
                 style={{
                   marginTop: '1.25rem',
                   backgroundColor: '#059669',
                   color: '#ffffff',
                   border: 'none',
-                  borderRadius: '6px',
-                  padding: '0.65rem 1rem',
-                  fontWeight: 600,
-                  fontSize: '0.85rem',
+                  borderRadius: '8px',
+                  padding: '0.75rem 1rem',
+                  fontWeight: 700,
+                  fontSize: '0.875rem',
                   cursor: 'pointer',
                   width: '100%',
                 }}
@@ -787,13 +947,13 @@ export const LandingPage: React.FC = () => {
               </button>
             </div>
 
-            {/* Persona 3 */}
+            {/* Persona 3: Parent */}
             <div
               style={{
                 backgroundColor: '#0f172a',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                borderRadius: '12px',
-                padding: '1.5rem',
+                border: '1px solid rgba(245, 158, 11, 0.25)',
+                borderRadius: '14px',
+                padding: '1.6rem',
                 textAlign: 'left',
                 display: 'flex',
                 flexDirection: 'column',
@@ -801,27 +961,27 @@ export const LandingPage: React.FC = () => {
               }}
             >
               <div>
-                <div style={{ fontSize: '1.8rem', marginBottom: '0.5rem' }}>👨‍👩‍👧</div>
-                <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#ffffff' }}>David Vance</div>
-                <div style={{ fontSize: '0.8rem', color: '#f59e0b', fontWeight: 600 }}>Parent / Guardian</div>
+                <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>👨‍👩‍👧</div>
+                <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#ffffff' }}>David Vance</div>
+                <div style={{ fontSize: '0.8rem', color: '#fbbf24', fontWeight: 700 }}>Verified Guardian</div>
                 <div style={{ fontSize: '0.78rem', color: '#94a3b8', margin: '0.6rem 0 1rem' }}>
-                  Parent to Leo Vance (Grade 9-A)
+                  Guardian to Leo Vance (Grade 9-A)
                 </div>
-                <div style={{ fontSize: '0.8rem', color: '#cbd5e1', lineHeight: 1.4 }}>
-                  Attendance radar, scorecards, and private teacher direct chat.
+                <div style={{ fontSize: '0.825rem', color: '#cbd5e1', lineHeight: 1.45 }}>
+                  Morning arrival radar, evaluated marks, homework tracker, and direct teacher chat.
                 </div>
               </div>
               <button
-                onClick={() => login('david.vance@parent.oakridge.edu', 'password123')}
+                onClick={() => handleQuickLogin('david.vance@parent.oakridge.edu', 'Parent')}
                 style={{
                   marginTop: '1.25rem',
                   backgroundColor: '#d97706',
                   color: '#ffffff',
                   border: 'none',
-                  borderRadius: '6px',
-                  padding: '0.65rem 1rem',
-                  fontWeight: 600,
-                  fontSize: '0.85rem',
+                  borderRadius: '8px',
+                  padding: '0.75rem 1rem',
+                  fontWeight: 700,
+                  fontSize: '0.875rem',
                   cursor: 'pointer',
                   width: '100%',
                 }}
@@ -830,13 +990,13 @@ export const LandingPage: React.FC = () => {
               </button>
             </div>
 
-            {/* Persona 4 */}
+            {/* Persona 4: Multi-Tenant Institution */}
             <div
               style={{
                 backgroundColor: '#0f172a',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                borderRadius: '12px',
-                padding: '1.5rem',
+                border: '1px solid rgba(168, 85, 247, 0.25)',
+                borderRadius: '14px',
+                padding: '1.6rem',
                 textAlign: 'left',
                 display: 'flex',
                 flexDirection: 'column',
@@ -844,27 +1004,27 @@ export const LandingPage: React.FC = () => {
               }}
             >
               <div>
-                <div style={{ fontSize: '1.8rem', marginBottom: '0.5rem' }}>🏫</div>
-                <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#ffffff' }}>Mr. Robert Vance</div>
-                <div style={{ fontSize: '0.8rem', color: '#a78bfa', fontWeight: 600 }}>School 2 Tenant</div>
+                <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🏫</div>
+                <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#ffffff' }}>Mr. Robert Vance</div>
+                <div style={{ fontSize: '0.8rem', color: '#c084fc', fontWeight: 700 }}>School 2 Tenant</div>
                 <div style={{ fontSize: '0.78rem', color: '#94a3b8', margin: '0.6rem 0 1rem' }}>
                   St. Jude High School • STJUDE
                 </div>
-                <div style={{ fontSize: '0.8rem', color: '#cbd5e1', lineHeight: 1.4 }}>
-                  Test complete multi-tenant separation across school systems.
+                <div style={{ fontSize: '0.825rem', color: '#cbd5e1', lineHeight: 1.45 }}>
+                  Test complete multi-tenant separation across separate school systems.
                 </div>
               </div>
               <button
-                onClick={() => login('robert.vance@stjude.edu', 'password123')}
+                onClick={() => handleQuickLogin('robert.vance@stjude.edu', 'School 2')}
                 style={{
                   marginTop: '1.25rem',
                   backgroundColor: '#7c3aed',
                   color: '#ffffff',
                   border: 'none',
-                  borderRadius: '6px',
-                  padding: '0.65rem 1rem',
-                  fontWeight: 600,
-                  fontSize: '0.85rem',
+                  borderRadius: '8px',
+                  padding: '0.75rem 1rem',
+                  fontWeight: 700,
+                  fontSize: '0.875rem',
                   cursor: 'pointer',
                   width: '100%',
                 }}
