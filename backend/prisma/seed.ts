@@ -126,6 +126,20 @@ async function main() {
     },
   });
 
+  // Shared / Visiting Faculty across both institutions for multi-school disambiguation demo
+  await prisma.user.create({
+    data: {
+      schoolId: oakridge.id,
+      email: 'shared.faculty@education.org',
+      passwordHash,
+      role: 'TEACHER',
+      firstName: 'Dr. Evelyn',
+      lastName: 'Reed',
+      avatarUrl: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&auto=format&fit=crop&q=80',
+      phone: '+1 (555) 998-1122',
+    },
+  });
+
   // Classes
   const grade9A = await prisma.classGroup.create({
     data: {
@@ -538,6 +552,20 @@ async function main() {
       firstName: 'Robert',
       lastName: 'Vance',
       avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&auto=format&fit=crop&q=80',
+    },
+  });
+
+  // Shared / Visiting Faculty across both institutions for multi-school disambiguation demo
+  await prisma.user.create({
+    data: {
+      schoolId: stjude.id,
+      email: 'shared.faculty@education.org',
+      passwordHash,
+      role: 'TEACHER',
+      firstName: 'Dr. Evelyn',
+      lastName: 'Reed',
+      avatarUrl: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&auto=format&fit=crop&q=80',
+      phone: '+1 (555) 998-1122',
     },
   });
 
